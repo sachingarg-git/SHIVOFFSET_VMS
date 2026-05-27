@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SHIVOFFSET • Visitor Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg-0:#08080c; --bg-1:#0d0d14; --bg-2:#15151f;
+  --orange:#ff6a00; --orange-2:#ffb347; --orange-glow:rgba(255,106,0,0.55);
+  --glass:rgba(255,255,255,0.04); --glass-2:rgba(255,255,255,0.07);
+  --stroke:rgba(255,255,255,0.08); --stroke-2:rgba(255,255,255,0.14);
+  --text:#f5f5f7; --muted:#8a8a96;
+  --green:#22c55e; --red:#ef4444; --yellow:#facc15;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:'Nunito',sans-serif;background:var(--bg-0);color:var(--text);overflow-x:hidden;font-size:14px;line-height:1.5;}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 70% 50% at 15% 10%, rgba(255,106,0,0.18), transparent 60%),radial-gradient(ellipse 60% 40% at 90% 80%, rgba(255,106,0,0.12), transparent 65%),radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,179,71,0.08), transparent 70%);}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.35;background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 90%);}
+
+.app{display:flex;min-height:100vh;position:relative;z-index:1;}
+
+/* Sidebar */
+.sidebar{width:250px;flex-shrink:0;padding:22px 16px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid var(--stroke);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:12px;padding:6px 8px 22px;border-bottom:1px solid var(--stroke);margin-bottom:18px;}
+.brand-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--orange),#ff3d00);display:grid;place-items:center;font-weight:900;font-size:18px;color:#fff;box-shadow:0 8px 24px -8px var(--orange-glow), inset 0 1px 0 rgba(255,255,255,0.3);overflow:hidden;}
+.brand-mark img{width:100%;height:100%;object-fit:contain;}
+.brand-text{display:flex;flex-direction:column;line-height:1.1;}
+.brand-text b{font-size:15px;letter-spacing:0.5px;}
+.brand-text small{color:var(--muted);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;}
+.nav{display:flex;flex-direction:column;gap:4px;}
+.nav-section{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:14px 10px 8px;font-weight:700;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;cursor:pointer;color:var(--muted);font-weight:600;font-size:13.5px;transition:all 0.25s ease;border:1px solid transparent;}
+.nav-item:hover{background:var(--glass);color:var(--text);}
+.nav-item.active{background:linear-gradient(135deg,rgba(255,106,0,0.22),rgba(255,106,0,0.06));color:#fff;border:1px solid rgba(255,106,0,0.35);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 18px -10px var(--orange-glow);}
+.nav-item .ico{width:22px;height:22px;display:grid;place-items:center;font-size:16px;}
+.nav-item .badge{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--orange);color:#000;font-weight:800;}
+.sidebar-footer{margin-top:auto;padding-top:18px;border-top:1px solid var(--stroke);font-size:11px;color:var(--muted);}
+.sidebar-footer b{color:var(--text);}
+.sidebar-footer button{margin-top:10px;width:100%;}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{position:sticky;top:0;z-index:50;padding:14px 24px;display:flex;align-items:center;gap:14px;background:rgba(8,8,12,0.7);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--stroke);}
+.menu-btn{display:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--stroke-2);background:var(--glass);color:#fff;font-size:18px;align-items:center;justify-content:center;cursor:pointer;}
+.page-title{font-size:18px;font-weight:800;letter-spacing:0.2px;}
+.page-sub{color:var(--muted);font-size:12px;margin-top:2px;}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.search{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--glass);border:1px solid var(--stroke);min-width:220px;}
+.search input{background:transparent;border:0;outline:0;color:#fff;font-family:inherit;font-size:13px;width:100%;}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--stroke);background:var(--glass);color:#fff;display:grid;place-items:center;cursor:pointer;position:relative;}
+.icon-btn .dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange);}
+.avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#ff6a00,#ff3d00);display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px;border:1px solid rgba(255,255,255,0.15);}
+.content{padding:22px 24px 100px;max-width:1500px;width:100%;}
+.page{display:none;animation:fadeUp 0.4s ease;}
+.page.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+.card{background:linear-gradient(160deg,var(--glass-2),var(--glass));border:1px solid var(--stroke);border-radius:18px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 8px 28px -16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);padding:20px;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.card-hd h3{font-size:15px;font-weight:800;letter-spacing:0.2px;}
+.card-hd p{color:var(--muted);font-size:12px;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.kpi{position:relative;overflow:hidden;padding:18px;border-radius:18px;background:linear-gradient(160deg,var(--glass-2),var(--glass));border:1px solid var(--stroke);backdrop-filter:blur(20px);}
+.kpi::after{content:"";position:absolute;top:-20px;right:-20px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(255,106,0,0.25),transparent 70%);}
+.kpi .kico{width:40px;height:40px;border-radius:10px;background:rgba(255,106,0,0.15);border:1px solid rgba(255,106,0,0.3);display:grid;place-items:center;font-size:18px;color:var(--orange-2);margin-bottom:12px;}
+.kpi .klabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;}
+.kpi .kval{font-size:28px;font-weight:900;margin-top:4px;letter-spacing:-0.5px;font-family:'Space Grotesk',sans-serif;}
+.kpi .kdelta{font-size:11px;color:var(--green);font-weight:700;margin-top:6px;}
+.kpi .kdelta.down{color:var(--red);}
+
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+.field label .req{color:var(--orange);}
+.field input,.field select,.field textarea{padding:11px 13px;border-radius:10px;background:rgba(0,0,0,0.35);border:1px solid var(--stroke);color:#fff;font-family:inherit;font-size:13.5px;outline:none;transition:border 0.2s, box-shadow 0.2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,106,0,0.15);}
+.field input.err,.field select.err{border-color:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,0.15);}
+.field textarea{resize:vertical;min-height:70px;}
+.field-full{grid-column:1/-1;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;border:1px solid transparent;transition:transform 0.15s, box-shadow 0.2s;background:transparent;color:#fff;}
+.btn:hover{transform:translateY(-1px);}
+.btn-primary{background:linear-gradient(135deg,var(--orange),#ff3d00);color:#fff;box-shadow:0 8px 22px -8px var(--orange-glow), inset 0 1px 0 rgba(255,255,255,0.2);}
+.btn-ghost{background:var(--glass);color:#fff;border:1px solid var(--stroke-2);}
+.btn-danger{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);}
+.btn-success{background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);}
+.btn-sm{padding:7px 12px;font-size:12px;}
+.btn-xs{padding:5px 9px;font-size:11px;border-radius:8px;}
+
+/* Photo capture */
+.photo-box{grid-column:1/-1;display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:center;padding:14px;border-radius:14px;background:rgba(0,0,0,0.25);border:1px dashed var(--stroke-2);}
+.photo-preview{width:200px;height:200px;border-radius:14px;background:radial-gradient(circle at 50% 35%, #1a1a26 0%, #0a0a10 100%);display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;border:1px solid var(--stroke);overflow:hidden;position:relative;}
+.photo-preview .avatar-big{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#ff6a00,#ff3d00);display:grid;place-items:center;font-size:34px;color:#fff;font-weight:900;box-shadow:0 8px 22px -8px var(--orange-glow);}
+.photo-preview img,.photo-preview video{width:100%;height:100%;object-fit:cover;}
+.photo-actions{display:flex;flex-direction:column;gap:10px;}
+.photo-actions p{color:var(--muted);font-size:12px;}
+.cam-controls{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--stroke);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{text-align:left;padding:12px 14px;font-size:10.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:800;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--stroke);white-space:nowrap;}
+tbody td{padding:12px 14px;border-bottom:1px solid var(--stroke);vertical-align:middle;}
+tbody tr:hover{background:rgba(255,106,0,0.04);}
+tbody tr:last-child td{border-bottom:0;}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;}
+.pill.in{background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);}
+.pill.out{background:rgba(148,163,184,0.15);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);}
+.pill.pending{background:rgba(250,204,21,0.15);color:#fde047;border:1px solid rgba(250,204,21,0.3);}
+.pill.banned{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);}
+.pill.approved{background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);}
+
+.row-avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#ff6a00,#ff3d00);display:inline-grid;place-items:center;font-weight:800;font-size:12px;color:#fff;overflow:hidden;}
+.row-avatar img{width:100%;height:100%;object-fit:cover;}
+.cell-user{display:flex;align-items:center;gap:10px;}
+.cell-user b{display:block;font-size:13px;}
+.cell-user small{color:var(--muted);font-size:11px;}
+.row-actions{display:flex;gap:6px;flex-wrap:nowrap;}
+
+.split-2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:18px;}
+.split-2-equal{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+.split-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.chart-box{position:relative;height:280px;}
+
+.host{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;}
+.host:hover{background:var(--glass);border-color:var(--stroke);}
+.host.selected{background:rgba(255,106,0,0.12);border-color:rgba(255,106,0,0.4);}
+.host .row-avatar{width:38px;height:38px;}
+.host-info b{display:block;font-size:13px;}
+.host-info small{color:var(--muted);font-size:11px;}
+.host-status{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);}
+.host-status.away{background:var(--yellow);box-shadow:0 0 8px var(--yellow);}
+
+/* Modal */
+.modal-wrap{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);padding:16px;}
+.modal-wrap.show{display:flex;}
+.modal{width:100%;max-width:560px;border-radius:20px;background:linear-gradient(160deg,#15151f,#0d0d14);border:1px solid var(--stroke-2);padding:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,0.8);animation:popIn 0.3s ease;max-height:90vh;overflow:auto;}
+.modal.wide{max-width:760px;}
+.modal.narrow{max-width:420px;}
+@keyframes popIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
+.modal h3{font-size:16px;margin-bottom:6px;}
+.modal>p{color:var(--muted);font-size:13px;margin-bottom:14px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+
+/* WhatsApp message preview */
+.wa-msg{border-radius:14px;padding:14px;margin-bottom:10px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:13px;line-height:1.55;position:relative;}
+.wa-msg.user{background:linear-gradient(135deg,#25d366,#0f9d58);margin-left:30px;}
+.wa-hd{display:flex;align-items:center;gap:8px;font-size:11px;opacity:0.85;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.wa-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.wa-btn{padding:6px 12px;border-radius:8px;background:rgba(255,255,255,0.18);font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.25);cursor:pointer;color:#fff;}
+.wa-btn.green{background:#22c55e;}
+.wa-btn.red{background:#ef4444;}
+.wa-chat-window{background:#0a1f1c;border-radius:14px;padding:14px;background-image:radial-gradient(circle at 20% 50%, rgba(34,197,94,0.05), transparent 50%);}
+
+/* E-badge */
+.ebadge{width:100%;max-width:340px;margin:0 auto;border-radius:18px;background:linear-gradient(160deg,#1a1a26,#0a0a10);border:1px solid var(--stroke-2);padding:0;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,0.7);}
+.ebadge-top{background:linear-gradient(135deg,var(--orange),#ff3d00);padding:14px;display:flex;align-items:center;gap:10px;color:#fff;}
+.ebadge-top .brand-mark{background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.25);box-shadow:none;}
+.ebadge-top b{font-size:13px;letter-spacing:0.4px;}
+.ebadge-top small{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:0.9;display:block;}
+.ebadge-body{padding:18px;text-align:center;}
+.ebadge-avatar{width:90px;height:90px;border-radius:50%;margin:0 auto 12px;background:linear-gradient(135deg,#ff6a00,#ff3d00);display:grid;place-items:center;font-size:34px;font-weight:900;color:#fff;border:3px solid rgba(255,255,255,0.1);overflow:hidden;}
+.ebadge-avatar img{width:100%;height:100%;object-fit:cover;}
+.ebadge-name{font-size:18px;font-weight:800;margin-bottom:2px;}
+.ebadge-purpose{color:var(--muted);font-size:12px;margin-bottom:14px;}
+.ebadge-row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px dashed var(--stroke-2);font-size:12px;}
+.ebadge-row span:first-child{color:var(--muted);}
+.ebadge-row span:last-child{font-weight:700;}
+.qr-box{margin:14px auto 6px;width:130px;height:130px;background:#fff;border-radius:10px;padding:8px;display:grid;place-items:center;}
+.qr-box canvas,.qr-box img{max-width:100% !important;max-height:100% !important;}
+.ebadge-id{font-family:'Space Grotesk',monospace;font-size:11px;color:var(--orange-2);letter-spacing:2px;margin-top:4px;}
+
+/* Bottom nav */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(8,8,12,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--stroke-2);padding:8px 4px calc(8px + env(safe-area-inset-bottom));}
+.bottom-nav-inner{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:520px;margin:0 auto;}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:12px;cursor:pointer;color:var(--muted);font-size:9.5px;font-weight:700;letter-spacing:0.3px;transition:all 0.2s;position:relative;}
+.bn-item .bn-ico{font-size:20px;line-height:1;}
+.bn-item.active{color:var(--orange-2);}
+.bn-item.active::before{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:30px;height:3px;border-radius:0 0 6px 6px;background:var(--orange);box-shadow:0 0 12px var(--orange-glow);}
+.bn-item.fab{background:linear-gradient(135deg,var(--orange),#ff3d00);color:#fff;border-radius:50%;width:54px;height:54px;margin:-22px auto 0;align-self:center;box-shadow:0 10px 24px -6px var(--orange-glow);padding:0;}
+.bn-item.fab .bn-ico{font-size:24px;}
+.bn-item.fab span:last-child{display:none;}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.chip{padding:7px 13px;border-radius:999px;font-size:11.5px;font-weight:700;cursor:pointer;background:var(--glass);border:1px solid var(--stroke);color:var(--muted);}
+.chip.active{background:rgba(255,106,0,0.18);border-color:rgba(255,106,0,0.45);color:var(--orange-2);}
+
+.toast{position:fixed;bottom:90px;right:20px;z-index:300;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;font-weight:700;font-size:13px;box-shadow:0 10px 30px -10px rgba(34,197,94,0.5);transform:translateY(20px);opacity:0;pointer-events:none;transition:all 0.3s ease;max-width:90vw;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{background:linear-gradient(135deg,#ef4444,#991b1b);box-shadow:0 10px 30px -10px rgba(239,68,68,0.5);}
+
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:80;backdrop-filter:blur(4px);}
+.backdrop.show{display:block;}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;}
+.empty b{display:block;font-size:15px;color:var(--text);margin-bottom:6px;}
+
+/* Responsive */
+@media (max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr);}.split-2,.split-2-equal{grid-template-columns:1fr;}.split-3{grid-template-columns:1fr;}}
+@media (max-width:860px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);transition:transform 0.3s ease;z-index:90;width:260px;}
+  .sidebar.open{transform:translateX(0);}
+  .menu-btn{display:grid;}
+  .search{display:none;}
+  .content{padding:18px 16px 110px;}
+  .bottom-nav{display:block;}
+  .topbar{padding:12px 16px;}
+  .page-title{font-size:16px;}
+}
+@media (max-width:560px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:10px;}
+  .kpi{padding:14px;}
+  .kpi .kval{font-size:22px;}
+  .form-grid{grid-template-columns:1fr;}
+  .photo-box{grid-template-columns:1fr;text-align:center;}
+  .photo-preview{margin:0 auto;}
+  .card{padding:16px;border-radius:16px;}
+  .topbar-actions .icon-btn:nth-child(2){display:none;}
+}
+/* ==================================================================
+   PREMIUM E-BADGE (Hybrid Two-Sided)
+   ================================================================== */
+.badge-toolbar{display:flex;gap:6px;justify-content:center;margin-bottom:14px;padding:5px;background:rgba(0,0,0,0.4);border:1px solid var(--stroke-2);border-radius:12px;backdrop-filter:blur(10px);width:fit-content;margin-left:auto;margin-right:auto;}
+.bt-pill{padding:8px 16px;border-radius:8px;border:0;background:transparent;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.25s;}
+.bt-pill.active{background:linear-gradient(135deg,var(--orange),#ff3d00);color:#fff;box-shadow:0 4px 12px -4px var(--orange-glow);}
+
+/* Flip scene */
+.flip-scene{perspective:1600px;width:100%;max-width:380px;margin:0 auto;}
+.flip-card{position:relative;width:100%;transform-style:preserve-3d;transition:transform 0.8s cubic-bezier(0.65,0,0.35,1);}
+.flip-card.flipped{transform:rotateY(180deg);}
+.flip-face{position:relative;backface-visibility:hidden;-webkit-backface-visibility:hidden;width:100%;}
+.flip-back{position:absolute;top:0;left:0;transform:rotateY(180deg);}
+
+/* ---------- FRONT (DARK SIMPLIFIED) ---------- */
+.ebadge-pro{
+  position:relative;
+  width:100%;
+  aspect-ratio:0.7/1;
+  border-radius:22px;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,106,0,0.35), transparent 60%),
+    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(255,61,0,0.2), transparent 60%),
+    linear-gradient(160deg, #1a1620 0%, #0a0a10 60%, #0a0810 100%);
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,0.9),
+    0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  overflow:hidden;
+  padding:42px 18px 20px;
+  display:flex;flex-direction:column;gap:14px;
+  isolation:isolate;
+}
+
+/* Lanyard hole at top */
+.lanyard-hole{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  width:50px;height:12px;border-radius:50%;
+  background:#000;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1);
+  z-index:5;
+}
+.lanyard-hole.light{
+  background:#cbd5e1;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+/* Header */
+.ep-header{display:flex;align-items:center;gap:10px;position:relative;z-index:2;}
+.ep-logo{
+  width:42px;height:42px;border-radius:11px;
+  background:linear-gradient(135deg,var(--orange),#ff3d00);
+  display:grid;place-items:center;overflow:hidden;
+  font-weight:900;font-size:20px;color:#fff;
+  box-shadow:0 6px 14px -4px var(--orange-glow), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.ep-logo img{width:100%;height:100%;object-fit:contain;}
+.ep-title{flex:1;line-height:1.1;}
+.ep-title small{font-size:9px;letter-spacing:1.8px;color:var(--orange-2);font-weight:800;}
+.ep-title b{display:block;font-size:13px;font-weight:800;margin-top:2px;}
+.ep-corner{text-align:right;line-height:1.1;}
+.ep-corner-label{font-size:8px;letter-spacing:1.5px;color:var(--muted);font-weight:700;}
+.ep-corner-val{font-family:'Space Grotesk',monospace;font-size:10px;color:var(--orange-2);font-weight:700;margin-top:2px;letter-spacing:0.5px;}
+
+/* Photo section */
+.ep-photo-section{text-align:center;position:relative;z-index:2;}
+.ep-photo-wrap{position:relative;width:120px;height:120px;margin:0 auto 12px;}
+.ep-photo{
+  width:100%;height:100%;border-radius:50%;
+  background:linear-gradient(135deg,var(--orange),#ff3d00);
+  display:grid;place-items:center;
+  font-size:42px;font-weight:900;color:#fff;
+  border:4px solid rgba(255,255,255,0.12);
+  overflow:hidden;
+  box-shadow:0 12px 30px -8px var(--orange-glow);
+}
+.ep-photo img{width:100%;height:100%;object-fit:cover;}
+.ep-name{font-size:22px;font-weight:800;letter-spacing:0.3px;line-height:1.1;}
+.ep-purpose{color:var(--orange-2);font-size:12px;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:1.4px;}
+
+/* Validity timer */
+.ep-timer{
+  position:relative;z-index:2;
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;
+  border-radius:12px;
+  background:rgba(34,197,94,0.08);
+  border:1px solid rgba(34,197,94,0.25);
+}
+.ep-timer-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.ep-timer>div:nth-child(2){flex:0 0 auto;line-height:1.1;}
+.ep-timer>div:nth-child(2) small{font-size:8.5px;color:var(--muted);letter-spacing:1.2px;font-weight:700;}
+.ep-timer>div:nth-child(2) b{display:block;font-family:'Space Grotesk',monospace;font-size:14px;color:#86efac;font-weight:700;margin-top:1px;}
+.ep-timer-bar{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden;}
+.ep-timer-bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#86efac);border-radius:3px;transition:width 0.5s;}
+
+/* QR section */
+.ep-qr-section{
+  position:relative;z-index:2;
+  display:grid;grid-template-columns:80px 1fr;gap:10px;
+  padding:10px;margin-bottom:10px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid var(--stroke);
+}
+.ep-qr-box{
+  width:92px;height:92px;background:#fff;border-radius:10px;padding:6px;
+  display:grid;place-items:center;
+  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+}
+.ep-qr-box canvas,.ep-qr-box img{max-width:100%!important;max-height:100%!important;}
+.ep-qr-meta{display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:10px;}
+.ep-meta-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted var(--stroke-2);}
+.ep-meta-row span{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;}
+.ep-meta-row b{font-size:11px;font-weight:700;color:#fff;}
+.ep-meta-scan{font-size:9px;color:var(--orange-2);font-weight:700;text-align:center;margin-top:4px;letter-spacing:0.5px;}
+
+/* Footer */
+.ep-footer{
+  position:relative;z-index:2;margin-top:auto;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:9px;color:var(--muted);font-weight:700;letter-spacing:0.5px;
+  padding-top:8px;border-top:1px solid var(--stroke);
+}
+.ep-footer-id{font-family:'Space Grotesk',monospace;color:var(--orange-2);}
+
+/* ---------- BACK (WHITE PRINTABLE) ---------- */
+.ebadge-print{
+  position:relative;
+  width:100%;
+  aspect-ratio:0.62/1;
+  border-radius:22px;
+  background:linear-gradient(160deg, #ffffff 0%, #f8f9fc 100%);
+  color:#1a1a1f;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,0.6);
+  overflow:hidden;
+  padding:42px 18px 18px;
+  display:flex;flex-direction:column;
+  font-family:'Nunito',sans-serif;
+}
+.ebadge-print::before{
+  content:"SHIVOFFSET";
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:110px;
+  color:rgba(255,106,0,0.04);letter-spacing:-4px;
+  transform:rotate(-22deg);pointer-events:none;
+  white-space:nowrap;line-height:1;
+}
+
+.ep-print-header{
+  display:flex;align-items:center;gap:10px;
+  padding-bottom:10px;margin-bottom:10px;
+  border-bottom:2px solid var(--orange);
+  position:relative;z-index:1;
+}
+.ep-print-logo{
+  width:40px;height:40px;border-radius:9px;
+  background:linear-gradient(135deg,var(--orange),#ff3d00);
+  display:grid;place-items:center;overflow:hidden;
+  font-weight:900;font-size:18px;color:#fff;
+}
+.ep-print-logo img{width:100%;height:100%;object-fit:contain;}
+.ep-print-header>div:nth-child(2){flex:1;line-height:1.1;}
+.ep-print-header small{font-size:8px;letter-spacing:1.4px;color:#666;font-weight:800;}
+.ep-print-header b{display:block;font-size:14px;font-weight:900;color:#1a1a1f;margin-top:2px;letter-spacing:0.5px;}
+.ep-print-id{
+  font-family:'Space Grotesk',monospace;font-size:9.5px;
+  background:#fff3e6;color:#ff3d00;
+  padding:4px 7px;border-radius:5px;font-weight:800;letter-spacing:0.5px;
+  border:1px solid #ffd6b5;
+}
+
+.ep-print-body{display:grid;grid-template-columns:90px 1fr;gap:12px;margin-bottom:12px;position:relative;z-index:1;}
+.ep-print-photo{
+  width:90px;height:110px;border-radius:8px;
+  background:linear-gradient(135deg,var(--orange),#ff3d00);
+  color:#fff;display:grid;place-items:center;font-size:34px;font-weight:900;
+  border:2px solid #ff6a00;overflow:hidden;
+  box-shadow:0 4px 12px -4px rgba(255,106,0,0.3);
+}
+.ep-print-photo img{width:100%;height:100%;object-fit:cover;}
+.ep-print-info{min-width:0;}
+.ep-print-name{font-size:15px;font-weight:900;color:#1a1a1f;line-height:1.1;margin-bottom:2px;}
+.ep-print-purpose{font-size:10px;color:#ff3d00;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px;}
+.ep-print-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;}
+.ep-print-grid>div{font-size:10px;display:flex;flex-direction:column;line-height:1.2;}
+.ep-print-grid label{font-size:7.5px;letter-spacing:1.2px;color:#888;font-weight:800;margin-bottom:1px;}
+.ep-print-grid span{font-size:10px;font-weight:700;color:#1a1a1f;}
+
+.ep-print-qr-section{
+  display:grid;grid-template-columns:75px 1fr;gap:10px;align-items:center;
+  padding:8px;margin-bottom:10px;
+  border-radius:8px;background:#fafafa;border:1px solid #e5e5e8;
+  position:relative;z-index:1;
+}
+.ep-print-qr{width:75px;height:75px;background:#fff;padding:3px;border-radius:5px;display:grid;place-items:center;border:1px solid #e0e0e0;}
+.ep-print-qr canvas,.ep-print-qr img{max-width:100%!important;max-height:100%!important;}
+.ep-print-rules b{font-size:8.5px;letter-spacing:1px;color:#ff3d00;font-weight:900;display:block;margin-bottom:3px;}
+.ep-print-rules ol{padding-left:14px;font-size:8.5px;color:#444;line-height:1.4;font-weight:600;}
+.ep-print-rules li{margin-bottom:1px;}
+
+.ep-print-signatures{
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px;
+  position:relative;z-index:1;
+}
+.ep-print-signatures small{font-size:8px;color:#666;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;}
+.sig-line{height:1px;background:#1a1a1f;margin-bottom:3px;margin-top:14px;}
+
+.ep-print-footer{
+  display:flex;justify-content:space-between;
+  font-size:8.5px;color:#888;font-weight:700;
+  padding-top:6px;border-top:1px dashed #d0d0d0;
+  position:relative;z-index:1;
+}
+
+/* ---------- Badge action buttons ---------- */
+.badge-actions{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  margin-top:16px;max-width:380px;margin-left:auto;margin-right:auto;
+}
+.badge-act{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 6px;border-radius:11px;cursor:pointer;
+  background:rgba(255,255,255,0.05);border:1px solid var(--stroke-2);
+  color:#fff;font-family:inherit;font-size:10.5px;font-weight:700;letter-spacing:0.3px;
+  transition:all 0.2s;
+}
+.badge-act:hover{background:rgba(255,106,0,0.12);border-color:rgba(255,106,0,0.35);transform:translateY(-2px);}
+.badge-act .ba-ico{font-size:18px;line-height:1;}
+.badge-act.wallet{font-weight:800;}
+.badge-act.wallet.apple{background:#000;border-color:#333;}
+.badge-act.wallet.apple .ba-ico{font-size:16px;}
+.badge-act.wallet.google{background:#fff;color:#1a1a1f;border-color:#fff;}
+.badge-act.wallet.google .ba-ico{
+  width:18px;height:18px;border-radius:50%;
+  background:conic-gradient(from 0deg, #4285f4, #ea4335, #fbbc05, #34a853, #4285f4);
+  color:#fff;font-size:11px;display:grid;place-items:center;font-weight:900;
+}
+
+/* Print optimizations */
+@media print{
+  body *{visibility:hidden;}
+  #badgeModal,#badgeModal *{visibility:visible;}
+  #badgeModal{position:absolute;left:0;top:0;background:#fff!important;}
+  .badge-toolbar,.badge-actions,.modal-actions,.btn{display:none!important;}
+  .flip-card{transform:none!important;}
+  .flip-front,.flip-back{position:relative!important;transform:none!important;page-break-after:always;margin:20px auto;}
+}
+
+/* Mobile responsive for badge */
+@media (max-width:480px){
+  .flip-scene{max-width:320px;}
+  .badge-actions{grid-template-columns:repeat(3,1fr);}
+  .badge-act{padding:8px 4px;font-size:9.5px;}
+  .ep-name{font-size:18px;}
+  .ebadge-print::before{font-size:90px;}
+}
+
+/* Keyboard hint */
+kbd{
+  display:inline-block;padding:2px 7px;border-radius:5px;
+  background:rgba(255,255,255,0.08);border:1px solid var(--stroke-2);
+  font-family:'Space Grotesk',monospace;font-size:11px;color:var(--orange-2);font-weight:700;
+  box-shadow:0 1px 0 rgba(255,255,255,0.05);
+}
+/* Zoomable photo */
+.zoomable{cursor:zoom-in;transition:transform 0.2s;}
+.zoomable:hover{transform:scale(1.06);}
+/* Selected row */
+tbody tr.selected{background:rgba(255,106,0,0.08)!important;}
+/* Loading spinner */
+.loading-spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,106,0,0.25);border-top-color:var(--orange);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* Bulk action checkbox */
+.row-check{cursor:pointer;width:16px;height:16px;accent-color:var(--orange);}
+
+/* Editable dropdown manage button */
+.opt-manage{
+  float:right;border:0;background:rgba(255,106,0,0.15);color:var(--orange-2);
+  font-family:inherit;font-size:9.5px;font-weight:800;letter-spacing:0.5px;
+  padding:2px 8px;border-radius:6px;cursor:pointer;text-transform:none;
+  border:1px solid rgba(255,106,0,0.3);
+}
+.opt-manage:hover{background:rgba(255,106,0,0.25);}
+.opt-row{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--stroke);
+}
+.opt-row span{flex:1;font-size:13px;font-weight:600;}
+.opt-row button{
+  border:0;background:rgba(239,68,68,0.15);color:#fca5a5;cursor:pointer;
+  width:28px;height:28px;border-radius:7px;font-size:13px;border:1px solid rgba(239,68,68,0.3);
+}
+.opt-row button:hover{background:rgba(239,68,68,0.28);}
+
+/* ==================================================================
+   GUARD-FRIENDLY MOBILE CHECK-IN (touch-optimized, simple)
+   ================================================================== */
+@media (max-width:768px){
+  /* Stack the two cards (form + host) vertically */
+  .page[data-page="checkin"] .split-2{display:flex;flex-direction:column;gap:14px;}
+
+  /* Bigger touch targets for all inputs in checkin */
+  .page[data-page="checkin"] .field input,
+  .page[data-page="checkin"] .field select,
+  .page[data-page="checkin"] .field textarea{
+    padding:15px 14px;font-size:16px;border-radius:13px;
+    /* font-size 16px stops iOS auto-zoom on focus */
+  }
+  .page[data-page="checkin"] .field label{font-size:12px;margin-bottom:2px;}
+
+  /* Photo capture: big, prominent, easy to tap */
+  .page[data-page="checkin"] .photo-box{
+    grid-template-columns:1fr;text-align:center;gap:14px;padding:16px;
+  }
+  .page[data-page="checkin"] .photo-preview{
+    width:130px;height:130px;margin:0 auto;
+  }
+  .page[data-page="checkin"] .cam-controls{
+    flex-direction:row;justify-content:center;gap:10px;flex-wrap:wrap;
+  }
+  .page[data-page="checkin"] .cam-controls .btn{
+    flex:1;min-width:90px;padding:13px 10px;font-size:14px;justify-content:center;
+  }
+
+  /* Host selected card: bigger, easier to read */
+  .page[data-page="checkin"] .host{padding:14px 12px;border-radius:13px;}
+  .page[data-page="checkin"] .host .row-avatar{width:44px;height:44px;font-size:14px;}
+  .page[data-page="checkin"] .host-info b{font-size:15px;}
+  .page[data-page="checkin"] .host-info small{font-size:12px;}
+  .page[data-page="checkin"] #hostSelect{font-size:16px;padding:15px 14px;}
+
+  /* STICKY submit bar at bottom — always reachable */
+  .page[data-page="checkin"] .checkin-actions{
+    position:sticky;
+    bottom:74px; /* sits above bottom-nav */
+    z-index:40;
+    margin:14px -16px -8px;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(8,8,12,0),rgba(8,8,12,0.92) 30%);
+    backdrop-filter:blur(12px);
+    display:flex;gap:10px;
+  }
+  .page[data-page="checkin"] .checkin-actions .btn{
+    padding:16px 12px;font-size:15px;border-radius:14px;font-weight:800;
+  }
+
+  /* Step labels for clarity */
+  .step-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:24px;height:24px;border-radius:50%;
+    background:var(--orange);color:#fff;font-size:12px;font-weight:900;margin-right:8px;
+  }
+}
+
+/* Selected host highlight — make it obvious for guard */
+.host.selected{
+  background:rgba(255,106,0,0.18);border-color:var(--orange);
+  box-shadow:0 0 0 1px var(--orange), 0 4px 14px -6px var(--orange-glow);
+}
+.host.selected::after{
+  content:"✓ Selected";margin-left:auto;font-size:10px;font-weight:800;
+  color:var(--orange-2);background:rgba(255,106,0,0.15);padding:3px 8px;border-radius:999px;
+}
+.host.selected .host-status{display:none;}
+
+/* Step heading styling */
+.step-head{display:flex;align-items:center;font-size:14px;font-weight:800;margin-bottom:14px;letter-spacing:0.2px;}
+.step-head .sub{font-weight:500;color:var(--muted);font-size:12px;margin-left:auto;}
+
+</style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop" onclick="closeSidebar()"></div>
+
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-text"><b>SHIVOFFSET VMS</b><small>Visitor Management</small></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" data-page="dashboard"><span class="ico">▦</span> Dashboard</div>
+      <div class="nav-item" data-page="checkin"><span class="ico">＋</span> New Check-in</div>
+      <div class="nav-item" data-page="visitors"><span class="ico">◉</span> Visitors <span class="badge" id="navVCount">0</span></div>
+      <div class="nav-item" data-page="scheduled"><span class="ico">⏱</span> Pre-Scheduled</div>
+      <div class="nav-section">Management</div>
+      <div class="nav-item" data-page="hosts"><span class="ico">☰</span> Host Directory</div>
+      <div class="nav-item" data-page="reports"><span class="ico">▲</span> Reports & Analytics</div>
+      <div class="nav-item" data-page="blacklist"><span class="ico">⊘</span> Blacklist</div>
+      <div class="nav-item" data-page="settings"><span class="ico">⚙</span> Settings</div>
+    </nav>
+    <div class="sidebar-footer">
+      <b>SHIVOFFSET (I) PVT. LTD.</b><br>
+      Haridwar • Build v2.0<br>
+      Logged in as <b>Guard 01</b>
+      <button class="btn btn-danger btn-sm" onclick="resetDemo()">↻ Reset Demo Data</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-btn" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="page-title" id="pageTitle">Dashboard</div>
+        <div class="page-sub" id="pageSub">Real-time visitor overview</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="search"><span>⌕</span><input placeholder="Search visitors, hosts..." id="globalSearch"/></div>
+        <button class="icon-btn">🔔<span class="dot"></span></button>
+        <button class="icon-btn">?</button>
+        <div class="avatar">MB</div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <section class="page active" data-page="dashboard">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kico">👥</div><div class="klabel">Today's Visitors</div><div class="kval" id="kpiTotal">0</div><div class="kdelta">▲ Live count</div></div>
+          <div class="kpi"><div class="kico">⏱</div><div class="klabel">Avg. Time Spent</div><div class="kval"><span id="kpiAvg">0</span><span style="font-size:14px;color:var(--muted);"> min</span></div><div class="kdelta">Real-time</div></div>
+          <div class="kpi"><div class="kico">◉</div><div class="klabel">Currently Inside</div><div class="kval" id="kpiInside">0</div><div class="kdelta">Live</div></div>
+          <div class="kpi"><div class="kico">⏳</div><div class="klabel">Pending Approvals</div><div class="kval" id="kpiPending">0</div><div class="kdelta">Awaiting host</div></div>
+        </div>
+
+        <div class="split-2">
+          <div class="card">
+            <div class="card-hd"><div><h3>Hourly Visitor Flow</h3><p>Today's check-ins by hour</p></div></div>
+            <div class="chart-box"><canvas id="hourlyChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div><h3>Visit Purpose</h3><p>Distribution today</p></div></div>
+            <div class="chart-box"><canvas id="purposeChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>Live Visitors (Currently Inside)</h3><p>Real-time check-in status</p></div>
+            <button class="btn btn-primary btn-sm" onclick="goPage('checkin')">＋ New Check-in</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Visitor</th><th>Mobile</th><th>Purpose</th><th>Host</th><th>Check-in</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="liveTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHECK-IN -->
+      <section class="page" data-page="checkin">
+        <div class="split-2">
+          <div class="card">
+            <div class="card-hd">
+              <div><h3 id="checkinTitle">New Visitor Check-in</h3><p>Visitor ki details bharein</p></div>
+              <span class="pill in">● Live</span>
+            </div>
+            <form id="checkinForm" onsubmit="event.preventDefault();submitCheckin();">
+              <div class="step-head"><span class="step-badge">1</span> Visitor Details <span class="sub">* zaroori</span></div>
+              <div class="form-grid">
+                <div class="photo-box">
+                  <div class="photo-preview" id="photoPreview"><div class="avatar-big">📷</div></div>
+                  <div class="photo-actions">
+                    <b style="font-size:13px;">Visitor Photo</b>
+                    <p>Camera se photo lein ya upload karein.</p>
+                    <div class="cam-controls">
+                      <button type="button" class="btn btn-primary btn-sm" onclick="openCamera()">📸 Photo Lein</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('photoUpload').click()">⤴ Upload</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="clearPhoto()">✕ Clear</button>
+                    </div>
+                    <input type="file" id="photoUpload" accept="image/*" capture="environment" style="display:none;" onchange="handleUpload(event)"/>
+                  </div>
+                </div>
+                <div class="field field-full"><label>Pura Naam <span class="req">*</span></label><input id="vName" placeholder="e.g. Rahul Verma" autocomplete="off"/></div>
+                <div class="field field-full"><label>Mobile Number <span class="req">*</span></label><input id="vMobile" type="tel" inputmode="numeric" placeholder="98XXX XXXXX" autocomplete="off"/></div>
+                <div class="field field-full"><label>Address</label><input id="vAddr" placeholder="Shehar / Area (optional)"/></div>
+                <div class="field">
+                  <label>Purpose <span class="req">*</span> <button type="button" class="opt-manage" onclick="openOptionsModal('purpose','Purpose of Visit')">⚙</button></label>
+                  <select id="vPurpose"></select>
+                </div>
+                <div class="field">
+                  <label>Department <button type="button" class="opt-manage" onclick="openOptionsModal('dept','Department')">⚙</button></label>
+                  <select id="vDept"></select>
+                </div>
+                <div class="field"><label>Saath mein log</label><input id="vCount" type="number" inputmode="numeric" value="0" min="0"/></div>
+                <div class="field field-full"><label>Remarks</label><textarea id="vRemarks" placeholder="Koi extra note... (optional)"></textarea></div>
+              </div>
+              <input type="hidden" id="vEditId" value=""/>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="step-head"><span class="step-badge">2</span> Kisse Milna Hai? <span class="sub">* host chunein</span></div>
+            <div class="field" style="margin-bottom:14px;">
+              <label>Host Select Karein <span class="req">*</span></label>
+              <select id="hostSelect" onchange="pickHost(this.value)"></select>
+            </div>
+            <div id="selectedHostCard" style="display:none;"></div>
+            <div class="checkin-actions" style="display:flex;gap:10px;margin-top:18px;">
+              <button class="btn btn-ghost" style="flex:1;" onclick="resetCheckinForm()">Reset</button>
+              <button class="btn btn-primary" style="flex:2;" onclick="submitCheckin()" id="submitBtn">✓ Submit & Notify</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISITORS -->
+      <section class="page" data-page="visitors">
+        <div class="chips">
+          <span class="chip active" data-filter="all">All</span>
+          <span class="chip" data-filter="in">Currently Inside</span>
+          <span class="chip" data-filter="out">Checked Out</span>
+          <span class="chip" data-filter="pending">Pending Approval</span>
+          <span style="flex:1;"></span>
+          <span class="chip active" data-range="today">📅 Today</span>
+          <span class="chip" data-range="week">This Week</span>
+          <span class="chip" data-range="month">This Month</span>
+          <span class="chip" data-range="all">All Time</span>
+          <span class="chip" data-range="custom" onclick="openDateRangeModal()">⚙ Custom</span>
+        </div>
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>All Visitors</h3><p id="visitorCount">Showing all entries</p></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⤓ Export CSV</button>
+              <button class="btn btn-primary btn-sm" onclick="goPage('checkin')">＋ New</button>
+            </div>
+          </div>
+          <!-- Bulk action toolbar -->
+          <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;border-radius:10px;background:rgba(255,106,0,0.12);border:1px solid rgba(255,106,0,0.35);">
+            <span style="font-weight:700;font-size:13px;"><span id="bulkCount">0</span> selected</span>
+            <span style="flex:1;"></span>
+            <button class="btn btn-success btn-sm" onclick="bulkCheckOut()">↗ Check Out All</button>
+            <button class="btn btn-danger btn-sm" onclick="bulkDelete()">🗑 Delete</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">✕ Clear</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th style="width:36px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()" style="cursor:pointer;"/></th>
+                <th>Visitor</th><th>Mobile</th><th>Company</th><th>Host</th><th>Purpose</th><th>In</th><th>Out</th><th>Duration</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="allVisitors"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCHEDULED -->
+      <section class="page" data-page="scheduled">
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>Pre-Scheduled Visitors</h3><p>Visits scheduled in advance — auto-approved on arrival</p></div>
+            <button class="btn btn-primary btn-sm" onclick="openSchedModal()">＋ Schedule Visit</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Visitor</th><th>Mobile</th><th>Company</th><th>Host</th><th>Purpose</th><th>Scheduled</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="schedTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOSTS -->
+      <section class="page" data-page="hosts">
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>Host Directory</h3><p>Internal employees who can receive visitors</p></div>
+            <button class="btn btn-primary btn-sm" onclick="openHostModal()">＋ Add Host</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Status</th><th>Today</th><th>Actions</th></tr></thead>
+              <tbody id="hostTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="page" data-page="reports">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kico">📈</div><div class="klabel">Total Visitors</div><div class="kval" id="rpTotal">0</div><div class="kdelta">All time</div></div>
+          <div class="kpi"><div class="kico">⏱</div><div class="klabel">Avg. Duration</div><div class="kval"><span id="rpAvg">0</span><span style="font-size:14px;color:var(--muted);"> min</span></div><div class="kdelta">Computed live</div></div>
+          <div class="kpi"><div class="kico">🏆</div><div class="klabel">Top Host</div><div class="kval" id="rpTopHost" style="font-size:16px;">—</div><div class="kdelta" id="rpTopHostCount">0 visitors</div></div>
+          <div class="kpi"><div class="kico">📅</div><div class="klabel">Most Common Purpose</div><div class="kval" id="rpTopPurpose" style="font-size:16px;">—</div><div class="kdelta" id="rpTopPurposeCount">0 visits</div></div>
+        </div>
+
+        <div class="split-2-equal">
+          <div class="card"><div class="card-hd"><div><h3>Weekly Trend</h3><p>Visitors per day — last 7 days</p></div></div><div class="chart-box"><canvas id="weekChart"></canvas></div></div>
+          <div class="card"><div class="card-hd"><div><h3>Time Spent by Department</h3><p>Avg min per visit</p></div></div><div class="chart-box"><canvas id="deptChart"></canvas></div></div>
+        </div>
+
+        <div class="split-2-equal">
+          <div class="card"><div class="card-hd"><div><h3>Top Hosts</h3><p>By visitor count</p></div></div><div class="chart-box"><canvas id="topHostChart"></canvas></div></div>
+          <div class="card"><div class="card-hd"><div><h3>Purpose Breakdown</h3><p>All visits</p></div></div><div class="chart-box"><canvas id="purposeChart2"></canvas></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>Daily Visitor Report</h3><p id="reportDate">Auto-generated</p></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⤓ CSV</button>
+              <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+              <button class="btn btn-primary btn-sm" onclick="toast('📧 Report queued for email to admin')">📧 Email Admin</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Visitor</th><th>Mobile</th><th>Host</th><th>Purpose</th><th>In</th><th>Out</th><th>Duration</th></tr></thead>
+              <tbody id="reportTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- BLACKLIST -->
+      <section class="page" data-page="blacklist">
+        <div class="card">
+          <div class="card-hd">
+            <div><h3>Blacklisted / Banned Visitors</h3><p>These visitors trigger an alert on check-in attempt</p></div>
+            <button class="btn btn-danger btn-sm" onclick="openBlacklistModal()">＋ Add to Blacklist</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Mobile</th><th>Reason</th><th>Added By</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="blacklistTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" data-page="settings">
+        <div class="split-2-equal">
+          <div class="card">
+            <div class="card-hd"><div><h3>WhatsApp API Settings</h3><p>Configure notification templates</p></div></div>
+            <form id="settingsForm" onsubmit="event.preventDefault();saveSettings();">
+              <div class="form-grid">
+                <div class="field field-full"><label>API Provider</label><select id="sProvider"><option>Twilio WhatsApp Business</option><option>Meta Cloud API</option><option>Gupshup</option><option>Interakt</option></select></div>
+                <div class="field field-full"><label>Sender Number</label><input id="sSender"/></div>
+                <div class="field field-full"><label>API Key / Token</label><input id="sToken" type="password" placeholder="xxxxxxxx-xxxx-xxxx"/></div>
+                <div class="field field-full"><label>Visitor Welcome Template</label><textarea id="sVisitorTmpl" rows="3"></textarea></div>
+                <div class="field field-full"><label>Host Alert Template</label><textarea id="sHostTmpl" rows="3"></textarea></div>
+                <div class="field field-full"><label>Check-out Thank-you Template</label><textarea id="sOutTmpl" rows="2"></textarea></div>
+              </div>
+              <div style="margin-top:16px;display:flex;gap:8px;">
+                <button type="button" class="btn btn-ghost" onclick="loadSettingsForm()">Discard</button>
+                <button type="submit" class="btn btn-primary">✓ Save Settings</button>
+              </div>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-hd">
+              <div><h3>Office Locations</h3><p>SHIVOFFSET check-in points</p></div>
+              <button class="btn btn-primary btn-sm" onclick="openLocModal()">＋ Add Location</button>
+            </div>
+            <div id="locList" style="display:flex;flex-direction:column;gap:10px;"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bn-item active" data-page="dashboard"><div class="bn-ico">▦</div><span>Home</span></div>
+    <div class="bn-item" data-page="visitors"><div class="bn-ico">◉</div><span>Visitors</span></div>
+    <div class="bn-item fab" data-page="checkin"><div class="bn-ico">＋</div><span>New</span></div>
+    <div class="bn-item" data-page="reports"><div class="bn-ico">▲</div><span>Reports</span></div>
+    <div class="bn-item" data-page="hosts"><div class="bn-ico">☰</div><span>Hosts</span></div>
+  </div>
+</nav>
+
+<!-- CAMERA MODAL -->
+<div class="modal-wrap" id="cameraModal">
+  <div class="modal narrow">
+    <h3>📸 Capture Photo</h3>
+    <p>Position visitor's face in the frame and click Snap</p>
+    <div style="background:#000;border-radius:12px;overflow:hidden;aspect-ratio:1/1;display:grid;place-items:center;">
+      <video id="camVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+    </div>
+    <canvas id="camCanvas" style="display:none;"></canvas>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCamera()">Cancel</button>
+      <button class="btn btn-primary" onclick="snapPhoto()">📷 Snap</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP PREVIEW MODAL -->
+<div class="modal-wrap" id="waModal">
+  <div class="modal">
+    <h3>📱 WhatsApp Notifications Sent</h3>
+    <p>The following messages have been triggered</p>
+    <div class="wa-chat-window">
+      <div class="wa-msg">
+        <div class="wa-hd">📨 To Host: <span id="waHostName"></span></div>
+        <b>🔔 Visitor Arrival Alert</b><br><br>
+        Hi <b id="waHostFirst"></b>, <b id="waVName1"></b> aapse milne aaye hain.<br><br>
+        📞 Mobile: <span id="waVMob1"></span><br>
+        🎯 Purpose: <b><span id="waVPurp"></span></b><br>
+        🕐 Check-in: <span id="waVTime1"></span><br><br>
+        <i>Visitor reception par wait kar rahe hain.</i>
+        <div class="wa-actions">
+          <button class="wa-btn" onclick="sendHostWhatsApp()">📲 Send to Host's WhatsApp</button>
+          <button class="wa-btn green" onclick="approveLatest()">✓ Approve</button>
+          <button class="wa-btn red" onclick="rejectLatest()">✗ Reject</button>
+        </div>
+      </div>
+      <div class="wa-msg user">
+        <div class="wa-hd">📨 To Visitor: <span id="waVName2"></span></div>
+        🙏 <b>Welcome to SHIVOFFSET (I) PVT. LTD.</b><br><br>
+        Hi <b id="waVFirst"></b> 👋,<br><br>
+        Aap <b>SHIVOFFSET (I) PVT. LTD.</b> mein check-in ho chuke hain on <b id="waVTime2"></b>.<br><br>
+        Aapke host <b id="waHostName2"></b> ko notify kar diya gaya hai.<br><br>
+        Aapka e-badge dekhne ke liye button dabayein 👇
+        <div class="wa-actions">
+          <button class="wa-btn" onclick="sendVisitorWhatsApp()">📲 Send Welcome to Visitor</button>
+          <button class="wa-btn" onclick="showBadge()">🎫 View e-Badge</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('waModal')">Close</button>
+      <button class="btn btn-success" onclick="sendBothWhatsApp()">📲 Send Both</button>
+      <button class="btn btn-primary" onclick="showBadge()">View e-Badge</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== PREMIUM E-BADGE MODAL (Hybrid Two-sided) ============== -->
+<div class="modal-wrap" id="badgeModal">
+  <div class="modal" style="background:transparent;border:0;box-shadow:none;padding:0;max-width:420px;width:100%;">
+
+    <!-- Flip controls -->
+    <div class="badge-toolbar">
+      <button class="bt-pill active" data-side="front" onclick="flipBadge('front')">◐ Front</button>
+      <button class="bt-pill" data-side="back" onclick="flipBadge('back')">◑ Back (Print)</button>
+    </div>
+
+    <!-- 3D flip container -->
+    <div class="flip-scene">
+      <div class="flip-card" id="flipCard">
+
+        <!-- ============ FRONT (DARK SIMPLIFIED) ============ -->
+        <div class="flip-face flip-front">
+          <div class="ebadge-pro" id="badgeFrontCard">
+            <!-- Lanyard hole -->
+            <div class="lanyard-hole"></div>
+
+            <!-- Header strip -->
+            <div class="ep-header">
+              <div class="ep-logo">S</div>
+              <div class="ep-title">
+                <small>VISITOR PASS</small>
+                <b>SHIVOFFSET (I)</b>
+              </div>
+              <div class="ep-corner">
+                <div class="ep-corner-label">ID</div>
+                <div class="ep-corner-val" id="badgeIdFront">VMS-260515-0042</div>
+              </div>
+            </div>
+
+            <!-- Photo + name -->
+            <div class="ep-photo-section">
+              <div class="ep-photo-wrap">
+                <div class="ep-photo" id="badgeAvatar">RV</div>
+              </div>
+              <div class="ep-name" id="badgeName">Rahul Verma</div>
+              <div class="ep-purpose" id="badgePurpose">Business Meeting</div>
+            </div>
+
+            <!-- Validity timer (compact) -->
+            <div class="ep-timer">
+              <div class="ep-timer-dot"></div>
+              <div>
+                <small>VALID FOR</small>
+                <b id="validityTimer">07h 24m</b>
+              </div>
+              <div class="ep-timer-bar">
+                <div class="ep-timer-bar-fill" id="validityBar" style="width:92%;"></div>
+              </div>
+            </div>
+
+            <!-- QR + meta -->
+            <div class="ep-qr-section">
+              <div class="ep-qr-box"><canvas id="qrCanvas"></canvas></div>
+              <div class="ep-qr-meta">
+                <div class="ep-meta-row"><span>Host</span><b id="badgeHostName">Sachin Dhiman</b></div>
+                <div class="ep-meta-row"><span>Check-in</span><b id="badgeTime">15:35</b></div>
+                <div class="ep-meta-row"><span>Date</span><b id="badgeDate">15 May 2026</b></div>
+                <div class="ep-meta-scan">📱 Scan at exit to check out</div>
+              </div>
+            </div>
+
+            <!-- Footer strip -->
+            <div class="ep-footer">
+              <span>shivoffset.com</span>
+              <span class="ep-footer-id" id="badgeIdFooter">VMS-260515-0042</span>
+              <span>+91 89000 60000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ BACK (WHITE PRINTABLE) ============ -->
+        <div class="flip-face flip-back">
+          <div class="ebadge-print" id="badgeBackCard">
+            <div class="lanyard-hole light"></div>
+
+            <div class="ep-print-header">
+              <div class="ep-print-logo">S</div>
+              <div>
+                <small>SHIVOFFSET (I) PVT. LTD.</small>
+                <b>VISITOR PASS</b>
+              </div>
+              <div class="ep-print-id" id="badgeIdBack">VMS-260515-0042</div>
+            </div>
+
+            <div class="ep-print-body">
+              <div class="ep-print-photo" id="badgeBackPhoto">RV</div>
+              <div class="ep-print-info">
+                <div class="ep-print-name" id="badgeBackName">Rahul Verma</div>
+                <div class="ep-print-purpose" id="badgeBackPurpose">Business Meeting</div>
+
+                <div class="ep-print-grid">
+                  <div><label>HOST</label><span id="badgeBackHost">Sachin Dhiman</span></div>
+                  <div><label>DEPT</label><span id="badgeBackDept">Operations</span></div>
+                  <div><label>IN</label><span id="badgeBackIn">15:35</span></div>
+                  <div><label>DATE</label><span id="badgeBackDate">15 May 2026</span></div>
+                  <div><label>VALID</label><span id="badgeBackValid">Till EOD</span></div>
+                  <div><label>LOC</label><span>Haridwar HQ</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ep-print-qr-section">
+              <div class="ep-print-qr"><canvas id="qrCanvasBack"></canvas></div>
+              <div class="ep-print-rules">
+                <b>VISITOR RULES</b>
+                <ol>
+                  <li>Wear this badge visibly at all times.</li>
+                  <li>Return at exit; scan QR to check out.</li>
+                  <li>Photography requires prior permission.</li>
+                  <li>Stay accompanied by your host inside.</li>
+                  <li>Report loss of badge to security immediately.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="ep-print-signatures">
+              <div><div class="sig-line"></div><small>Visitor Signature</small></div>
+              <div><div class="sig-line"></div><small>Security / Guard</small></div>
+            </div>
+
+            <div class="ep-print-footer">
+              <span>SHIVOFFSET (I) PVT. LTD. • Haridwar</span>
+              <span>shivoffset.com</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="badge-actions">
+      <button class="badge-act" onclick="downloadBadgePNG()">
+        <span class="ba-ico">⬇</span><span>Download PNG</span>
+      </button>
+      <button class="badge-act" onclick="printBadge()">
+        <span class="ba-ico">🖨</span><span>Print</span>
+      </button>
+      <button class="badge-act" onclick="shareBadge()">
+        <span class="ba-ico">⤴</span><span>Share</span>
+      </button>
+      <button class="badge-act wallet apple" onclick="addToWallet('apple')">
+        <span class="ba-ico"></span><span>Apple Wallet</span>
+      </button>
+      <button class="badge-act wallet google" onclick="addToWallet('google')">
+        <span class="ba-ico">G</span><span>Google Wallet</span>
+      </button>
+    </div>
+
+    <div style="text-align:center;margin-top:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('badgeModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOST MODAL -->
+<div class="modal-wrap" id="hostModal">
+  <div class="modal">
+    <h3 id="hostModalTitle">Add Host</h3>
+    <p>Internal employee who can receive visitors</p>
+    <form id="hostForm" onsubmit="event.preventDefault();saveHost();">
+      <div class="form-grid">
+        <div class="field"><label>Full Name <span class="req">*</span></label><input id="hName"/></div>
+        <div class="field"><label>Designation <span class="req">*</span></label><input id="hRole"/></div>
+        <div class="field"><label>Department <span class="req">*</span></label><select id="hDept"></select></div>
+        <div class="field"><label>Mobile <span class="req">*</span></label><input id="hMob"/></div>
+        <div class="field"><label>Email</label><input id="hEmail" type="email"/></div>
+        <div class="field"><label>Status</label><select id="hStatus"><option value="online">Online</option><option value="away">Away</option></select></div>
+      </div>
+      <input type="hidden" id="hEditId"/>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('hostModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">✓ Save Host</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SCHEDULED VISIT MODAL -->
+<div class="modal-wrap" id="schedModal">
+  <div class="modal">
+    <h3 id="schedModalTitle">Schedule Visit</h3>
+    <p>Pre-approve a visitor expected to arrive</p>
+    <form id="schedForm" onsubmit="event.preventDefault();saveSched();">
+      <div class="form-grid">
+        <div class="field"><label>Visitor Name <span class="req">*</span></label><input id="sName"/></div>
+        <div class="field"><label>Mobile <span class="req">*</span></label><input id="sMob"/></div>
+        <div class="field"><label>Company</label><input id="sCo"/></div>
+        <div class="field"><label>Host <span class="req">*</span></label><select id="sHost"></select></div>
+        <div class="field"><label>Purpose</label><select id="sPurpose"></select></div>
+        <div class="field"><label>Date <span class="req">*</span></label><input id="sDate" type="date"/></div>
+        <div class="field"><label>Time</label><input id="sTime" type="time"/></div>
+        <div class="field"><label>Status</label><select id="sStatus"><option value="approved">Approved</option><option value="pending">Awaiting</option></select></div>
+      </div>
+      <input type="hidden" id="sEditId"/>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('schedModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">✓ Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- BLACKLIST MODAL -->
+<div class="modal-wrap" id="blacklistModal">
+  <div class="modal">
+    <h3 id="blModalTitle">Add to Blacklist</h3>
+    <p>Banned visitor — flagged on entry attempt</p>
+    <form id="blForm" onsubmit="event.preventDefault();saveBlacklist();">
+      <div class="form-grid">
+        <div class="field"><label>Name <span class="req">*</span></label><input id="bName"/></div>
+        <div class="field"><label>Mobile <span class="req">*</span></label><input id="bMob"/></div>
+        <div class="field field-full"><label>Reason <span class="req">*</span></label><textarea id="bReason" rows="3"></textarea></div>
+        <div class="field"><label>Added By</label><input id="bBy" value="Manpreet Bedi"/></div>
+        <div class="field"><label>Sub-label</label><input id="bSub" placeholder="e.g. Ex-employee"/></div>
+      </div>
+      <input type="hidden" id="bEditId"/>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('blacklistModal')">Cancel</button>
+        <button type="submit" class="btn btn-danger">✓ Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- LOCATION MODAL -->
+<div class="modal-wrap" id="locModal">
+  <div class="modal narrow">
+    <h3 id="locModalTitle">Add Office Location</h3>
+    <p>SHIVOFFSET check-in point</p>
+    <form id="locForm" onsubmit="event.preventDefault();saveLoc();">
+      <div class="form-grid">
+        <div class="field field-full"><label>Location Name <span class="req">*</span></label><input id="lName"/></div>
+        <div class="field field-full"><label>Address</label><input id="lAddr"/></div>
+        <div class="field"><label>Status</label><select id="lStatus"><option value="online">Active</option><option value="away">Limited</option></select></div>
+        <div class="field"><label>Code</label><input id="lCode" placeholder="HQ" maxlength="4"/></div>
+      </div>
+      <input type="hidden" id="lEditId"/>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('locModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">✓ Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-wrap" id="confirmModal">
+  <div class="modal narrow">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMsg">Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmOk">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS MANAGER MODAL (editable dropdowns) -->
+<div class="modal-wrap" id="optionsModal">
+  <div class="modal narrow">
+    <h3 id="optModalTitle">Manage Options</h3>
+    <p>Add ya delete karo — list saari dropdowns mein update ho jayegi</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input id="optNewVal" placeholder="New option type karein..." style="flex:1;padding:11px 13px;border-radius:10px;background:rgba(0,0,0,0.35);border:1px solid var(--stroke);color:#fff;font-family:inherit;font-size:13.5px;outline:none;" onkeydown="if(event.key==='Enter'){event.preventDefault();addOption();}"/>
+      <button class="btn btn-primary" onclick="addOption()">＋ Add</button>
+    </div>
+    <div id="optList" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('optionsModal')">✓ Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW VISITOR DETAIL MODAL -->
+<div class="modal-wrap" id="viewModal">
+  <div class="modal wide">
+    <h3>Visitor Details</h3>
+    <p id="viewSub"></p>
+    <div id="viewBody" style="display:grid;grid-template-columns:160px 1fr;gap:18px;align-items:start;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('viewModal')">Close</button>
+      <button class="btn btn-ghost" id="viewBadgeBtn">🎫 Badge</button>
+      <button class="btn btn-primary" id="viewEditBtn">✎ Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- DATE RANGE MODAL -->
+<div class="modal-wrap" id="dateRangeModal">
+  <div class="modal narrow">
+    <h3>📅 Custom Date Range</h3>
+    <p>Filter visitors by check-in date</p>
+    <div class="form-grid">
+      <div class="field"><label>From <span class="req">*</span></label><input id="rangeFrom" type="date"/></div>
+      <div class="field"><label>To <span class="req">*</span></label><input id="rangeTo" type="date"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('dateRangeModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="applyDateRange()">✓ Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO PREVIEW MODAL -->
+<div class="modal-wrap" id="photoModal" style="background:rgba(0,0,0,0.9);">
+  <div class="modal" style="background:transparent;border:0;box-shadow:none;padding:0;max-width:560px;">
+    <img id="photoFull" style="width:100%;border-radius:16px;display:block;"/>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn btn-ghost" onclick="closeModal('photoModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- KEYBOARD SHORTCUTS MODAL -->
+<div class="modal-wrap" id="shortcutsModal">
+  <div class="modal narrow">
+    <h3>⌨ Keyboard Shortcuts</h3>
+    <p>Speed up your workflow</p>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>New Check-in</span><b><kbd>Ctrl</kbd> + <kbd>N</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Dashboard</span><b><kbd>Ctrl</kbd> + <kbd>1</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Visitors</span><b><kbd>Ctrl</kbd> + <kbd>2</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Reports</span><b><kbd>Ctrl</kbd> + <kbd>3</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Search</span><b><kbd>Ctrl</kbd> + <kbd>K</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Close modal</span><b><kbd>Esc</kbd></b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.04);"><span>Show shortcuts</span><b><kbd>?</kbd></b></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('shortcutsModal')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Saved</div>
+
+<script>
+/* ================== STORAGE ================== */
+const LS_KEY="wizone_vms_v2";
+const DEFAULT={
+  visitors:[],
+  hosts:[
+    {id:1,name:"Manpreet Bedi",role:"Founder & CTO",dept:"Management",mob:"+91 98180 00001",email:"manpreet@wizone.in",st:"online"},
+    {id:2,name:"Sachin Dhiman",role:"Project Manager",dept:"Operations",mob:"+91 98180 00002",email:"sachin@wizone.in",st:"online"},
+    {id:3,name:"Ravinder Giri",role:"Sales Head",dept:"Sales",mob:"+91 98180 00003",email:"ravinder@wizone.in",st:"online"},
+    {id:4,name:"Sachin Garg",role:"Senior Developer",dept:"Development",mob:"+91 98180 00004",email:"sachin.g@wizone.in",st:"away"},
+    {id:5,name:"Akshay Dhiman",role:"Developer",dept:"Development",mob:"+91 98180 00005",email:"akshay@wizone.in",st:"online"},
+    {id:6,name:"Ajay Dhiman",role:"Developer",dept:"Development",mob:"+91 98180 00006",email:"ajay@wizone.in",st:"online"},
+    {id:7,name:"Bilal Ahmad",role:"Accounts Head",dept:"Accounts",mob:"+91 98180 00007",email:"bilal@wizone.in",st:"away"},
+    {id:8,name:"Neha Bedi",role:"Director",dept:"Management",mob:"+91 98180 00008",email:"neha@wizone.in",st:"online"},
+  ],
+  scheduled:[
+    {id:1,name:"Ankit Khanna",mob:"+91 98101 23456",co:"Reliance Retail",host:"Sachin Dhiman",purpose:"Vendor / Supplier",date:"2026-05-15",time:"17:30",st:"approved"},
+    {id:2,name:"Priya Rajan",mob:"+91 99887 65432",co:"Freelance Designer",host:"Manpreet Bedi",purpose:"Interview",date:"2026-05-16",time:"11:00",st:"approved"},
+    {id:3,name:"Rohit Tiwari",mob:"+91 90909 33333",co:"BSNL Networks",host:"Ravinder Giri",purpose:"Business Meeting",date:"2026-05-16",time:"14:00",st:"pending"},
+  ],
+  blacklist:[
+    {id:1,name:"Raj Joshi",mob:"+91 98000 11000",reason:"Aggressive behavior at gate",by:"Manpreet Bedi",sub:"Ex-employee",date:"2026-03-22"},
+    {id:2,name:"Unknown Vendor",mob:"+91 70000 99999",reason:"Misrepresented identity",by:"Sachin Dhiman",sub:"Fake company",date:"2026-04-10"},
+    {id:3,name:"Manish Kumar",mob:"+91 81234 56789",reason:"Unauthorised entry attempt",by:"Guard 02",sub:"Loan recovery",date:"2026-05-03"},
+  ],
+  locations:[
+    {id:1,name:"Haridwar HQ",addr:"Bhagwanpur, Haridwar — Main",st:"online",code:"HQ"},
+    {id:2,name:"Delhi Office",addr:"Azadpur, New Delhi 110033",st:"online",code:"DL"},
+    {id:3,name:"Tower Sites (35)",addr:"RF Network — visitors restricted",st:"away",code:"RF"},
+  ],
+  settings:{
+    provider:"Twilio WhatsApp Business",
+    sender:"+91 89000 60000",
+    token:"",
+    visitorTmpl:"🙏 Welcome to SHIVOFFSET (I) PVT. LTD.! Hi {visitor_name} 👋, aap check-in ho chuke hain on {date} {time}. Aapke host {host_name} ko notify kar diya gaya hai. Aapka e-badge: {badge_url}",
+    hostTmpl:"🔔 Visitor Alert — Hi {host_name}, {visitor_name} aapse milne aaye hain. Purpose: {purpose}. Mobile: {visitor_mobile}. Check-in: {time}. — SHIVOFFSET (I) PVT. LTD.",
+    outTmpl:"🙏 Thank you {visitor_name} for visiting SHIVOFFSET (I) PVT. LTD.! Aapne {duration} time spend kiya. Phir milenge 😊"
+  },
+  options:{
+    purpose:["Business Meeting","Interview","Vendor / Supplier","Delivery / Courier","Maintenance","Personal"],
+    dept:["Management","Operations","Sales","Development","Accounts","Marketing","Support","HR"]
+  },
+  seq:{visitor:1,host:9,sched:4,bl:4,loc:4}
+};
+
+const DEPTS=["Management","Operations","Sales","Development","Accounts","Marketing","Support","HR"];
+
+let DB=load();
+
+function load(){
+  try{
+    const s=localStorage.getItem(LS_KEY);
+    if(s){
+      const parsed=JSON.parse(s);
+      if(!parsed.options){parsed.options={purpose:[...DEFAULT.options.purpose],dept:[...DEFAULT.options.dept]};}
+      if(!parsed.options.purpose) parsed.options.purpose=[...DEFAULT.options.purpose];
+      if(!parsed.options.dept) parsed.options.dept=[...DEFAULT.options.dept];
+      return parsed;
+    }
+  }catch(e){}
+  // seed visitors with sample today's data
+  const seed=JSON.parse(JSON.stringify(DEFAULT));
+  const today=new Date().toISOString().slice(0,10);
+  const samples=[
+    {name:"Rahul Verma",co:"Acme Pharma",mob:"+91 98101 23456",addr:"Sector 18, Noida",desig:"Procurement Head",host:"Sachin Dhiman",purpose:"Business Meeting",inT:"10:15",outT:"11:02",st:"out",idType:"Aadhaar",idNum:"1234-5678-9012",vehicle:"UP 16 AB 1234",dept:"Operations"},
+    {name:"Anita Sharma",co:"TechSoft Ltd",mob:"+91 98221 11200",addr:"Connaught Place, Delhi",desig:"Account Manager",host:"Manpreet Bedi",purpose:"Vendor / Supplier",inT:"11:30",outT:"12:25",st:"out",idType:"PAN",idNum:"ABCDE1234F",vehicle:"DL 8C XX 1212",dept:"Management"},
+    {name:"Vikram Singh",co:"BSNL",mob:"+91 90909 22222",addr:"Roorkee Road, Haridwar",desig:"Field Engineer",host:"Ravinder Giri",purpose:"Business Meeting",inT:"12:40",outT:"13:15",st:"out",idType:"Aadhaar",idNum:"5544-3322-1100",vehicle:"UK 08 ZZ 4321",dept:"Sales"},
+    {name:"Pooja Mehra",co:"Freelance",mob:"+91 81234 90909",addr:"Saket, New Delhi",desig:"UI Designer",host:"Manpreet Bedi",purpose:"Interview",inT:"14:00",outT:"15:10",st:"out",idType:"PAN",idNum:"ZYXWV9876S",vehicle:"",dept:"Management"},
+    {name:"Karan Bhatia",co:"Reliance",mob:"+91 89222 71717",addr:"Andheri, Mumbai",desig:"Sr. Manager",host:"Sachin Dhiman",purpose:"Business Meeting",inT:"14:20",outT:"",st:"in",idType:"Aadhaar",idNum:"1112-2233-4455",vehicle:"MH 02 KL 7777",dept:"Operations"},
+    {name:"Sneha Kapoor",co:"HDFC Bank",mob:"+91 70707 81818",addr:"Cyber Hub, Gurgaon",desig:"Audit Officer",host:"Bilal Ahmad",purpose:"Maintenance",inT:"14:45",outT:"",st:"in",idType:"Aadhaar",idNum:"9988-7766-5544",vehicle:"HR 26 BL 1212",dept:"Accounts"},
+    {name:"Arjun Nair",co:"Mimosa Networks",mob:"+91 99999 22221",addr:"Whitefield, Bangalore",desig:"Technical Lead",host:"Sachin Garg",purpose:"Maintenance",inT:"15:00",outT:"",st:"in",idType:"PAN",idNum:"AAAAA1111B",vehicle:"",dept:"Development"},
+    {name:"Shivam Pandey",co:"Doon Public School",mob:"+91 96666 12121",addr:"Dehradun",desig:"Principal",host:"Manpreet Bedi",purpose:"Business Meeting",inT:"15:30",outT:"",st:"pending",idType:"Aadhaar",idNum:"3344-5566-7788",vehicle:"UK 07 MN 0001",dept:"Management"},
+  ];
+  samples.forEach((s,i)=>{
+    seed.visitors.push({id:i+1,...s,date:today,count:0,remarks:"",photo:null,createdAt:Date.now()-((8-i)*900000)});
+  });
+  seed.seq.visitor=samples.length+1;
+  return seed;
+}
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(DB));}
+function resetDemo(){
+  confirmAction("Reset all data?","This will erase all visitors, hosts, scheduled visits, blacklist and settings. Continue?",()=>{
+    localStorage.removeItem(LS_KEY);
+    DB=load();save();
+    renderAll();
+    toast("✓ Demo data reset");
+  });
+}
+
+/* ================== HELPERS ================== */
+function initials(n){return (n||"?").split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();}
+function nowHM(){const d=new Date();return d.toTimeString().slice(0,5);}
+function today(){return new Date().toISOString().slice(0,10);}
+function mins(hm){if(!hm)return 0;const [h,m]=hm.split(':').map(Number);return h*60+m;}
+function fmtDur(min){if(min<=0)return "—";if(min<60)return min+"m";return Math.floor(min/60)+"h "+(min%60)+"m";}
+function liveDur(v){
+  if(v.st==='out' && v.outT) return fmtDur(mins(v.outT)-mins(v.inT));
+  const nowM=mins(nowHM());
+  const d=nowM-mins(v.inT);
+  return d>0?fmtDur(d):"just now";
+}
+function durMinutes(v){
+  if(v.st==='out' && v.outT) return Math.max(0,mins(v.outT)-mins(v.inT));
+  return Math.max(0,mins(nowHM())-mins(v.inT));
+}
+function pillHTML(st){
+  if(st==='in') return '<span class="pill in">● Inside</span>';
+  if(st==='out') return '<span class="pill out">Checked Out</span>';
+  if(st==='pending') return '<span class="pill pending">Awaiting Host</span>';
+  if(st==='approved') return '<span class="pill approved">Approved</span>';
+  return '<span class="pill out">'+st+'</span>';
+}
+function avatarHTML(name,photo,zoom=false){
+  if(photo){
+    const z=zoom?` class="zoomable" onclick="event.stopPropagation();showPhoto('${photo}')"`:'';
+    return `<div class="row-avatar"${z}><img src="${photo}" alt=""/></div>`;
+  }
+  return `<div class="row-avatar">${initials(name)}</div>`;
+}
+function showPhoto(src){
+  document.getElementById('photoFull').src=src;
+  openModal('photoModal');
+}
+
+/* ================== TOAST + CONFIRM ================== */
+let toastTimer=null;
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.toggle('err',err);t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function confirmAction(title,msg,onYes){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  const btn=document.getElementById('confirmOk');
+  const fresh=btn.cloneNode(true);btn.parentNode.replaceChild(fresh,btn);
+  fresh.textContent="Yes, Delete";
+  fresh.className="btn btn-danger";
+  fresh.addEventListener('click',()=>{closeModal('confirmModal');onYes();});
+  // Reset cancel button to default
+  const cancelBtn=document.querySelector('#confirmModal .btn-ghost');
+  if(cancelBtn){
+    const cFresh=cancelBtn.cloneNode(true);cancelBtn.parentNode.replaceChild(cFresh,cancelBtn);
+    cFresh.textContent="Cancel";
+    cFresh.addEventListener('click',()=>closeModal('confirmModal'));
+  }
+  openModal('confirmModal');
+}
+function confirmActionCustom(title,msg,okLabel,cancelLabel,onYes,onNo){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  const btn=document.getElementById('confirmOk');
+  const fresh=btn.cloneNode(true);btn.parentNode.replaceChild(fresh,btn);
+  fresh.textContent=okLabel||"Yes";
+  fresh.className="btn btn-primary";
+  fresh.addEventListener('click',()=>{closeModal('confirmModal');if(onYes)onYes();});
+  // Update cancel button label
+  const cancelBtn=document.querySelector('#confirmModal .btn-ghost');
+  if(cancelBtn){
+    const cFresh=cancelBtn.cloneNode(true);cancelBtn.parentNode.replaceChild(cFresh,cancelBtn);
+    cFresh.textContent=cancelLabel||"Cancel";
+    cFresh.addEventListener('click',()=>{closeModal('confirmModal');if(onNo)onNo();});
+  }
+  openModal('confirmModal');
+}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');if(id==='cameraModal')stopCamera();}
+
+/* ================== NAVIGATION ================== */
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.page[data-page="${name}"]`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===name));
+  document.querySelectorAll('.bn-item').forEach(n=>n.classList.toggle('active', n.dataset.page===name));
+  const titles={dashboard:["Dashboard","Real-time visitor overview"],checkin:["New Check-in","Capture visitor details & notify host"],visitors:["All Visitors","Complete visitor log"],scheduled:["Pre-Scheduled","Visitors expected today / soon"],hosts:["Host Directory","Internal employees"],reports:["Reports & Analytics","Insights & analytics"],blacklist:["Blacklist","Banned visitors"],settings:["Settings","WhatsApp API & configuration"]};
+  document.getElementById('pageTitle').textContent=titles[name][0];
+  document.getElementById('pageSub').textContent=titles[name][1];
+  closeSidebar();
+  if(name==='reports') renderCharts();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>goPage(el.dataset.page)));
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('backdrop').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('backdrop').classList.remove('show');}
+
+/* ================== CAMERA ================== */
+let camStream=null;
+async function openCamera(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast("⚠ Camera not supported in this browser. Use Upload instead.",true);
+    return;
+  }
+  openModal('cameraModal');
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:640}},audio:false});
+    document.getElementById('camVideo').srcObject=camStream;
+  }catch(e){
+    closeModal('cameraModal');
+    if(e.name==='NotAllowedError') toast("⚠ Camera permission denied. Use Upload instead.",true);
+    else if(e.name==='NotFoundError') toast("⚠ No camera found on this device.",true);
+    else if(location.protocol==='file:') toast("⚠ Camera blocked on file:// — open via HTTP/HTTPS or use Upload.",true);
+    else toast("⚠ Camera error: "+e.message+". Use Upload.",true);
+  }
+}
+function snapPhoto(){
+  const v=document.getElementById('camVideo');
+  if(!v.videoWidth){toast("⚠ Camera not ready yet, try again",true);return;}
+  const c=document.getElementById('camCanvas');
+  const size=Math.min(v.videoWidth,v.videoHeight)||480;
+  c.width=size;c.height=size;
+  const ctx=c.getContext('2d');
+  const sx=(v.videoWidth-size)/2, sy=(v.videoHeight-size)/2;
+  ctx.drawImage(v,sx,sy,size,size,0,0,size,size);
+  const dataUrl=c.toDataURL('image/jpeg',0.7);
+  setPhoto(dataUrl);
+  closeCamera();
+  toast("✓ Photo captured");
+}
+function stopCamera(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}}
+function closeCamera(){stopCamera();closeModal('cameraModal');}
+function handleUpload(e){
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>5*1024*1024){toast("⚠ Max 5 MB",true);return;}
+  const r=new FileReader();
+  r.onload=()=>{
+    // downscale for storage
+    const img=new Image();
+    img.onload=()=>{
+      const max=400;
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const cv=document.createElement('canvas');
+      cv.width=img.width*scale;cv.height=img.height*scale;
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      setPhoto(cv.toDataURL('image/jpeg',0.75));
+      toast("✓ Photo uploaded");
+    };
+    img.src=r.result;
+  };
+  r.readAsDataURL(f);
+  e.target.value="";
+}
+let currentPhoto=null;
+function setPhoto(dataUrl){
+  currentPhoto=dataUrl;
+  document.getElementById('photoPreview').innerHTML=`<img src="${dataUrl}" alt=""/>`;
+}
+function clearPhoto(){currentPhoto=null;document.getElementById('photoPreview').innerHTML='<div class="avatar-big">📷</div>';}
+
+/* ================== CHECK-IN FORM ================== */
+let selectedHost=null;
+function renderHostPicker(filter=''){
+  // Populate the host dropdown
+  const sel=document.getElementById('hostSelect');
+  if(!sel) return;
+  if(!DB.hosts.length){
+    sel.innerHTML='<option value="">-- Koi host nahi, pehle add karein --</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">-- Host select karein --</option>'+
+    DB.hosts.map(h=>`<option value="${h.name.replace(/"/g,'&quot;')}" ${selectedHost===h.name?'selected':''}>${h.name} — ${h.dept}${h.st==='away'?' (Away)':''}</option>`).join('');
+  if(selectedHost) sel.value=selectedHost;
+  renderSelectedHostCard();
+}
+function pickHost(name){
+  selectedHost=name||null;
+  renderSelectedHostCard();
+}
+function renderSelectedHostCard(){
+  const card=document.getElementById('selectedHostCard');
+  if(!card) return;
+  if(!selectedHost){card.style.display='none';card.innerHTML='';return;}
+  const h=DB.hosts.find(x=>x.name===selectedHost);
+  if(!h){card.style.display='none';return;}
+  card.style.display='block';
+  card.innerHTML=`
+    <div class="host selected" style="cursor:default;">
+      <div class="row-avatar">${initials(h.name)}</div>
+      <div class="host-info"><b>${h.name}</b><small>${h.role} • ${h.dept} • ${h.mob}</small></div>
+    </div>`;
+}
+
+function fillDeptSelect(sel){
+  if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML=(DB.options.dept||DEPTS).map(d=>`<option>${d}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+function fillPurposeSelect(sel){
+  if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML=(DB.options.purpose||[]).map(d=>`<option>${d}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+function refreshAllDropdowns(){
+  fillDeptSelect(document.getElementById('vDept'));
+  fillDeptSelect(document.getElementById('hDept'));
+  fillPurposeSelect(document.getElementById('vPurpose'));
+  fillPurposeSelect(document.getElementById('sPurpose'));
+}
+
+/* ===== Editable dropdown options manager ===== */
+let optCurrentKey=null;
+function openOptionsModal(key,title){
+  optCurrentKey=key;
+  document.getElementById('optModalTitle').textContent="Manage: "+title;
+  document.getElementById('optNewVal').value="";
+  renderOptList();
+  openModal('optionsModal');
+  setTimeout(()=>document.getElementById('optNewVal').focus(),100);
+}
+function renderOptList(){
+  const list=DB.options[optCurrentKey]||[];
+  const el=document.getElementById('optList');
+  if(!list.length){el.innerHTML='<div class="empty" style="padding:20px;"><b>No options yet</b>Add one above</div>';return;}
+  el.innerHTML=list.map((o,i)=>`
+    <div class="opt-row">
+      <span>${o}</span>
+      <button onclick="deleteOption(${i})" title="Delete">🗑</button>
+    </div>`).join('');
+}
+function addOption(){
+  const val=document.getElementById('optNewVal').value.trim();
+  if(!val){toast("⚠ Kuch type karein",true);return;}
+  if(DB.options[optCurrentKey].some(o=>o.toLowerCase()===val.toLowerCase())){toast("⚠ Already exists",true);return;}
+  DB.options[optCurrentKey].push(val);
+  save();
+  document.getElementById('optNewVal').value="";
+  renderOptList();refreshAllDropdowns();
+  toast("✓ Added: "+val);
+}
+function deleteOption(idx){
+  const val=DB.options[optCurrentKey][idx];
+  if(DB.options[optCurrentKey].length<=1){toast("⚠ Kam se kam 1 option chahiye",true);return;}
+  confirmAction("Delete option?",`"${val}" ko remove karein? Pehle se save records par koi asar nahi hoga.`,()=>{
+    DB.options[optCurrentKey].splice(idx,1);
+    save();renderOptList();refreshAllDropdowns();
+    toast("✓ Deleted: "+val);
+  });
+}
+
+function resetCheckinForm(){
+  ["vName","vMobile","vAddr","vRemarks"].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('vCount').value=0;
+  document.getElementById('vEditId').value='';
+  document.getElementById('checkinTitle').textContent="New Visitor Check-in";
+  document.getElementById('submitBtn').innerHTML="✓ Submit & Notify Host";
+  selectedHost=null;renderHostPicker();
+  clearPhoto();
+  document.querySelectorAll('#checkinForm .err').forEach(e=>e.classList.remove('err'));
+}
+
+function submitCheckin(){
+  const editId=document.getElementById('vEditId').value;
+  const v={
+    name:document.getElementById('vName').value.trim(),
+    mob:document.getElementById('vMobile').value.trim(),
+    addr:document.getElementById('vAddr').value.trim(),
+    co:"—",
+    desig:"—",
+    idType:"",
+    idNum:"",
+    vehicle:"",
+    count:parseInt(document.getElementById('vCount').value)||0,
+    dept:document.getElementById('vDept').value,
+    purpose:document.getElementById('vPurpose').value,
+    remarks:document.getElementById('vRemarks').value.trim(),
+    host:selectedHost,
+    photo:currentPhoto,
+  };
+  // validation — sirf Naam, Mobile aur Host zaroori
+  const errs=[];
+  if(!v.name){errs.push('vName');}
+  if(!v.mob){errs.push('vMobile');}
+  if(!v.host){toast("⚠ Please select a host",true);return;}
+  document.querySelectorAll('#checkinForm .err').forEach(e=>e.classList.remove('err'));
+  if(errs.length){errs.forEach(id=>document.getElementById(id).classList.add('err'));toast("⚠ Fill required fields",true);return;}
+  // blacklist check
+  const blocked=DB.blacklist.find(b=>b.mob.replace(/\D/g,'')===v.mob.replace(/\D/g,''));
+  if(blocked && !editId){
+    confirmAction("⚠ Blacklisted Visitor","This mobile is blacklisted: "+blocked.reason+". Proceed anyway?",()=>doSave(v,editId));
+    return;
+  }
+  doSave(v,editId);
+}
+function doSave(v,editId){
+  if(editId){
+    const idx=DB.visitors.findIndex(x=>x.id==editId);
+    if(idx>-1){
+      DB.visitors[idx]={...DB.visitors[idx],...v};
+      save();renderAll();
+      toast("✓ Visitor updated");
+      goPage('visitors');
+      resetCheckinForm();
+      return;
+    }
+  }
+  // new
+  const id=DB.seq.visitor++;
+  const newV={
+    id,...v,
+    inT:nowHM(),outT:"",st:"in",
+    date:today(),createdAt:Date.now()
+  };
+  DB.visitors.push(newV);
+  save();renderAll();
+  showWAPreview(newV);
+}
+
+function editVisitor(id){
+  const v=DB.visitors.find(x=>x.id===id);if(!v)return;
+  goPage('checkin');
+  document.getElementById('checkinTitle').textContent="Edit Visitor #"+id;
+  document.getElementById('submitBtn').innerHTML="✓ Update Visitor";
+  document.getElementById('vEditId').value=id;
+  document.getElementById('vName').value=v.name;
+  document.getElementById('vMobile').value=v.mob;
+  document.getElementById('vAddr').value=v.addr||"";
+  document.getElementById('vCount').value=v.count||0;
+  document.getElementById('vDept').value=v.dept||DEPTS[0];
+  document.getElementById('vPurpose').value=v.purpose;
+  document.getElementById('vRemarks').value=v.remarks||"";
+  selectedHost=v.host;
+  currentPhoto=v.photo;
+  if(v.photo) document.getElementById('photoPreview').innerHTML=`<img src="${v.photo}"/>`;
+  else document.getElementById('photoPreview').innerHTML='<div class="avatar-big">📷</div>';
+  renderHostPicker();
+}
+
+function checkOut(id){
+  const v=DB.visitors.find(x=>x.id===id);if(!v)return;
+  if(v.st==='out'){toast("Already checked out");return;}
+  confirmAction("Check out "+v.name+"?","Exit time record hoga aur thank-you WhatsApp bhej sakte hain.",()=>{
+    v.outT=nowHM();v.st='out';
+    save();renderAll();
+    const dur=fmtDur(durMinutes(v));
+    toast("✓ Checked out • Duration: "+dur);
+    // Offer to send thank-you WhatsApp
+    confirmActionCustom("📲 Send Thank-you WhatsApp?",`${v.name} ko thank-you message bhejein? (Duration: ${dur})`,"Yes, Send","Skip",()=>{
+      sendCheckoutWhatsApp(v);
+    });
+  });
+}
+function approveVisitor(id){
+  const v=DB.visitors.find(x=>x.id===id);if(!v)return;
+  v.st='in';save();renderAll();
+  toast("✓ Approved — visitor allowed entry");
+}
+function approveLatest(){
+  const last=[...DB.visitors].sort((a,b)=>b.createdAt-a.createdAt)[0];
+  if(last){
+    if(last.st==='pending') approveVisitor(last.id);
+    toast(`✓ Host ${last.host} approved ${last.name} via WhatsApp`);
+  }
+  closeModal('waModal');
+}
+function rejectLatest(){
+  const last=[...DB.visitors].sort((a,b)=>b.createdAt-a.createdAt)[0];
+  if(last){
+    const name=last.name,host=last.host;
+    DB.visitors=DB.visitors.filter(x=>x.id!==last.id);
+    save();renderAll();
+    toast(`✗ Host ${host} rejected ${name} — record removed`,true);
+  }
+  closeModal('waModal');
+}
+function deleteVisitor(id){
+  const v=DB.visitors.find(x=>x.id===id);if(!v)return;
+  confirmAction("Delete "+v.name+"?","This permanently removes the record. Continue?",()=>{
+    DB.visitors=DB.visitors.filter(x=>x.id!==id);
+    save();renderAll();
+    toast("✓ Visitor deleted");
+  });
+}
+function viewVisitor(id){
+  const v=DB.visitors.find(x=>x.id===id);if(!v)return;
+  document.getElementById('viewSub').textContent=(v.co&&v.co!=="—"?v.co+" • ":"")+v.purpose;
+  document.getElementById('viewBody').innerHTML=`
+    <div style="text-align:center;">
+      ${v.photo?`<img src="${v.photo}" class="zoomable" onclick="showPhoto('${v.photo}')" style="width:140px;height:140px;border-radius:14px;object-fit:cover;border:1px solid var(--stroke-2);"/>`:`<div style="width:140px;height:140px;border-radius:14px;background:linear-gradient(135deg,#ff6a00,#ff3d00);display:grid;place-items:center;font-size:42px;font-weight:900;">${initials(v.name)}</div>`}
+      <div style="margin-top:10px;">${pillHTML(v.st)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Name</div><b>${v.name}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Mobile</div><b>${v.mob}</b></div>
+      <div style="grid-column:1/-1;"><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Address</div><b>${v.addr||"—"}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Accompanying</div><b>${v.count||0}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Department</div><b>${v.dept||"—"}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Purpose</div><b>${v.purpose}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Host</div><b>${v.host}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Check-in</div><b>${v.inT}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Check-out</div><b>${v.outT||"—"}</b></div>
+      <div><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Duration</div><b style="color:var(--orange-2);">${liveDur(v)}</b></div>
+      ${v.remarks?`<div style="grid-column:1/-1;"><div style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">Remarks</div><b>${v.remarks}</b></div>`:""}
+    </div>`;
+  const btn=document.getElementById('viewEditBtn');
+  const fresh=btn.cloneNode(true);btn.parentNode.replaceChild(fresh,btn);
+  fresh.addEventListener('click',()=>{closeModal('viewModal');editVisitor(id);});
+
+  const bbtn=document.getElementById('viewBadgeBtn');
+  const bfresh=bbtn.cloneNode(true);bbtn.parentNode.replaceChild(bfresh,bbtn);
+  bfresh.addEventListener('click',()=>{closeModal('viewModal');viewBadge(id);});
+
+  openModal('viewModal');
+}
+
+/* ================== HOST CRUD ================== */
+function openHostModal(id){
+  document.getElementById('hostModalTitle').textContent=id?"Edit Host":"Add Host";
+  fillDeptSelect(document.getElementById('hDept'));
+  if(id){
+    const h=DB.hosts.find(x=>x.id===id);
+    document.getElementById('hName').value=h.name;
+    document.getElementById('hRole').value=h.role;
+    document.getElementById('hDept').value=h.dept;
+    document.getElementById('hMob').value=h.mob;
+    document.getElementById('hEmail').value=h.email||"";
+    document.getElementById('hStatus').value=h.st;
+    document.getElementById('hEditId').value=id;
+  } else {
+    document.getElementById('hostForm').reset();
+    document.getElementById('hEditId').value="";
+    fillDeptSelect(document.getElementById('hDept'));
+  }
+  openModal('hostModal');
+}
+function saveHost(){
+  const name=document.getElementById('hName').value.trim();
+  const role=document.getElementById('hRole').value.trim();
+  const dept=document.getElementById('hDept').value;
+  const mob=document.getElementById('hMob').value.trim();
+  if(!name||!role||!mob){toast("⚠ Fill required fields",true);return;}
+  const editId=parseInt(document.getElementById('hEditId').value)||0;
+  const data={name,role,dept,mob,email:document.getElementById('hEmail').value.trim(),st:document.getElementById('hStatus').value};
+  if(editId){
+    const h=DB.hosts.find(x=>x.id===editId);
+    Object.assign(h,data);
+    toast("✓ Host updated");
+  } else {
+    DB.hosts.push({id:DB.seq.host++,...data});
+    toast("✓ Host added");
+  }
+  save();renderAll();closeModal('hostModal');
+}
+function deleteHost(id){
+  const h=DB.hosts.find(x=>x.id===id);if(!h)return;
+  const used=DB.visitors.filter(v=>v.host===h.name).length;
+  confirmAction("Delete "+h.name+"?",used?`This host has ${used} visitor record(s). Records will keep their host name. Continue?`:"Permanently delete this host?",()=>{
+    DB.hosts=DB.hosts.filter(x=>x.id!==id);
+    save();renderAll();
+    toast("✓ Host deleted");
+  });
+}
+
+/* ================== SCHEDULED CRUD ================== */
+function openSchedModal(id){
+  document.getElementById('schedModalTitle').textContent=id?"Edit Scheduled Visit":"Schedule Visit";
+  const hsel=document.getElementById('sHost');
+  hsel.innerHTML=DB.hosts.map(h=>`<option>${h.name}</option>`).join('');
+  fillPurposeSelect(document.getElementById('sPurpose'));
+  if(id){
+    const s=DB.scheduled.find(x=>x.id===id);
+    document.getElementById('sName').value=s.name;
+    document.getElementById('sMob').value=s.mob;
+    document.getElementById('sCo').value=s.co||"";
+    document.getElementById('sHost').value=s.host;
+    document.getElementById('sPurpose').value=s.purpose;
+    document.getElementById('sDate').value=s.date;
+    document.getElementById('sTime').value=s.time;
+    document.getElementById('sStatus').value=s.st;
+    document.getElementById('sEditId').value=id;
+  } else {
+    document.getElementById('schedForm').reset();
+    document.getElementById('sEditId').value="";
+    document.getElementById('sDate').value=today();
+  }
+  openModal('schedModal');
+}
+function saveSched(){
+  const name=document.getElementById('sName').value.trim();
+  const mob=document.getElementById('sMob').value.trim();
+  const date=document.getElementById('sDate').value;
+  if(!name||!mob||!date){toast("⚠ Fill required fields",true);return;}
+  const data={name,mob,co:document.getElementById('sCo').value.trim(),host:document.getElementById('sHost').value,purpose:document.getElementById('sPurpose').value,date,time:document.getElementById('sTime').value,st:document.getElementById('sStatus').value};
+  const editId=parseInt(document.getElementById('sEditId').value)||0;
+  if(editId){
+    Object.assign(DB.scheduled.find(x=>x.id===editId),data);
+    toast("✓ Schedule updated");
+  } else {
+    DB.scheduled.push({id:DB.seq.sched++,...data});
+    toast("✓ Visit scheduled");
+  }
+  save();renderAll();closeModal('schedModal');
+}
+function deleteSched(id){
+  const s=DB.scheduled.find(x=>x.id===id);if(!s)return;
+  confirmAction("Cancel visit for "+s.name+"?","This will remove the scheduled entry.",()=>{
+    DB.scheduled=DB.scheduled.filter(x=>x.id!==id);save();renderAll();toast("✓ Visit cancelled");
+  });
+}
+
+/* ================== BLACKLIST CRUD ================== */
+function openBlacklistModal(id){
+  document.getElementById('blModalTitle').textContent=id?"Edit Blacklist Entry":"Add to Blacklist";
+  if(id){
+    const b=DB.blacklist.find(x=>x.id===id);
+    document.getElementById('bName').value=b.name;
+    document.getElementById('bMob').value=b.mob;
+    document.getElementById('bReason').value=b.reason;
+    document.getElementById('bBy').value=b.by;
+    document.getElementById('bSub').value=b.sub||"";
+    document.getElementById('bEditId').value=id;
+  } else {
+    document.getElementById('blForm').reset();
+    document.getElementById('bBy').value="Manpreet Bedi";
+    document.getElementById('bEditId').value="";
+  }
+  openModal('blacklistModal');
+}
+function saveBlacklist(){
+  const name=document.getElementById('bName').value.trim();
+  const mob=document.getElementById('bMob').value.trim();
+  const reason=document.getElementById('bReason').value.trim();
+  if(!name||!mob||!reason){toast("⚠ Fill required fields",true);return;}
+  const data={name,mob,reason,by:document.getElementById('bBy').value.trim()||"Admin",sub:document.getElementById('bSub').value.trim(),date:today()};
+  const editId=parseInt(document.getElementById('bEditId').value)||0;
+  if(editId){Object.assign(DB.blacklist.find(x=>x.id===editId),data);toast("✓ Entry updated");}
+  else{DB.blacklist.push({id:DB.seq.bl++,...data});toast("✓ Added to blacklist");}
+  save();renderAll();closeModal('blacklistModal');
+}
+function deleteBlacklist(id){
+  const b=DB.blacklist.find(x=>x.id===id);if(!b)return;
+  confirmAction("Remove "+b.name+" from blacklist?","They will be allowed to check-in again.",()=>{
+    DB.blacklist=DB.blacklist.filter(x=>x.id!==id);save();renderAll();toast("✓ Removed from blacklist");
+  });
+}
+
+/* ================== LOCATION CRUD ================== */
+function openLocModal(id){
+  document.getElementById('locModalTitle').textContent=id?"Edit Location":"Add Office Location";
+  if(id){
+    const l=DB.locations.find(x=>x.id===id);
+    document.getElementById('lName').value=l.name;
+    document.getElementById('lAddr').value=l.addr||"";
+    document.getElementById('lStatus').value=l.st;
+    document.getElementById('lCode').value=l.code||"";
+    document.getElementById('lEditId').value=id;
+  } else {
+    document.getElementById('locForm').reset();
+    document.getElementById('lEditId').value="";
+  }
+  openModal('locModal');
+}
+function saveLoc(){
+  const name=document.getElementById('lName').value.trim();
+  if(!name){toast("⚠ Name required",true);return;}
+  const data={name,addr:document.getElementById('lAddr').value.trim(),st:document.getElementById('lStatus').value,code:document.getElementById('lCode').value.trim().toUpperCase()||name.slice(0,2).toUpperCase()};
+  const editId=parseInt(document.getElementById('lEditId').value)||0;
+  if(editId){Object.assign(DB.locations.find(x=>x.id===editId),data);toast("✓ Location updated");}
+  else{DB.locations.push({id:DB.seq.loc++,...data});toast("✓ Location added");}
+  save();renderAll();closeModal('locModal');
+}
+function deleteLoc(id){
+  const l=DB.locations.find(x=>x.id===id);if(!l)return;
+  confirmAction("Delete "+l.name+"?","This location will be removed.",()=>{
+    DB.locations=DB.locations.filter(x=>x.id!==id);save();renderAll();toast("✓ Location deleted");
+  });
+}
+
+/* ================== SETTINGS ================== */
+function loadSettingsForm(){
+  const s=DB.settings;
+  document.getElementById('sProvider').value=s.provider;
+  document.getElementById('sSender').value=s.sender;
+  document.getElementById('sToken').value=s.token;
+  document.getElementById('sVisitorTmpl').value=s.visitorTmpl;
+  document.getElementById('sHostTmpl').value=s.hostTmpl;
+  document.getElementById('sOutTmpl').value=s.outTmpl;
+}
+function saveSettings(){
+  DB.settings={
+    provider:document.getElementById('sProvider').value,
+    sender:document.getElementById('sSender').value,
+    token:document.getElementById('sToken').value,
+    visitorTmpl:document.getElementById('sVisitorTmpl').value,
+    hostTmpl:document.getElementById('sHostTmpl').value,
+    outTmpl:document.getElementById('sOutTmpl').value,
+  };
+  save();toast("✓ Settings saved");
+}
+
+/* ================== RENDERERS ================== */
+let currentFilter="all";
+let currentDateRange={mode:"today",from:null,to:null};
+let selectedIds=new Set();
+
+function renderLive(){
+  const tb=document.getElementById('liveTable');
+  const live=DB.visitors.filter(v=>v.st==='in'||v.st==='pending');
+  if(!live.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><b>No active visitors</b>Check in someone to see them here</div></td></tr>';return;}
+  tb.innerHTML=live.map(v=>`
+    <tr>
+      <td><div class="cell-user">${avatarHTML(v.name,v.photo,true)}<div><b>${v.name}</b><small>${v.co}</small></div></div></td>
+      <td>${v.mob}</td>
+      <td>${v.purpose}</td>
+      <td>${v.host}</td>
+      <td>${v.inT}</td>
+      <td><b style="color:var(--orange-2);">${liveDur(v)}</b></td>
+      <td>${pillHTML(v.st)}</td>
+      <td><div class="row-actions">
+        ${v.st==='pending'?`<button class="btn btn-success btn-xs" onclick="approveVisitor(${v.id})">✓ Approve</button>`:''}
+        <button class="btn btn-ghost btn-xs" onclick="viewBadge(${v.id})" title="Badge">🎫</button>
+        <button class="btn btn-ghost btn-xs" onclick="checkOut(${v.id})">↗ Out</button>
+      </div></td>
+    </tr>`).join('');
+}
+function renderAll(){
+  renderLive();renderAllVisitors();renderHostTable();renderSchedTable();
+  renderBlacklistTable();renderLocList();renderHostPicker();refreshAllDropdowns();
+  updateKPI();renderReportTable();
+  if(document.querySelector('.page[data-page="reports"]').classList.contains('active')) renderCharts();
+}
+function filterByDateRange(arr){
+  const r=currentDateRange;
+  if(r.mode==='all') return arr;
+  const todayD=new Date();todayD.setHours(0,0,0,0);
+  return arr.filter(v=>{
+    if(!v.date) return false;
+    const d=new Date(v.date);d.setHours(0,0,0,0);
+    if(r.mode==='today'){return d.getTime()===todayD.getTime();}
+    if(r.mode==='week'){const weekAgo=new Date(todayD);weekAgo.setDate(todayD.getDate()-6);return d>=weekAgo && d<=todayD;}
+    if(r.mode==='month'){const monAgo=new Date(todayD);monAgo.setDate(todayD.getDate()-29);return d>=monAgo && d<=todayD;}
+    if(r.mode==='custom' && r.from && r.to){
+      const f=new Date(r.from);f.setHours(0,0,0,0);
+      const t=new Date(r.to);t.setHours(0,0,0,0);
+      return d>=f && d<=t;
+    }
+    return true;
+  });
+}
+
+function renderAllVisitors(){
+  const tb=document.getElementById('allVisitors');
+  let arr=DB.visitors.filter(v=>currentFilter==='all'||v.st===currentFilter);
+  arr=filterByDateRange(arr);
+  arr=arr.sort((a,b)=>b.createdAt-a.createdAt);
+
+  const rangeLabel={today:"Today",week:"This Week",month:"This Month",all:"All Time",custom:currentDateRange.from?`${currentDateRange.from} to ${currentDateRange.to}`:"Custom"}[currentDateRange.mode];
+  document.getElementById('visitorCount').textContent=`Showing ${arr.length} of ${DB.visitors.length} entries • ${rangeLabel}`;
+  document.getElementById('navVCount').textContent=DB.visitors.length;
+
+  if(!arr.length){
+    tb.innerHTML='<tr><td colspan="11"><div class="empty"><b>No visitors</b>'+(DB.visitors.length?'Try changing the filter':'Click "+ New" to add one')+'</div></td></tr>';
+    updateBulkBar();return;
+  }
+  tb.innerHTML=arr.map(v=>`
+    <tr class="${selectedIds.has(v.id)?'selected':''}">
+      <td><input type="checkbox" class="row-check" data-id="${v.id}" ${selectedIds.has(v.id)?'checked':''} onclick="toggleSelect(${v.id},event)"/></td>
+      <td><div class="cell-user">${avatarHTML(v.name,v.photo,true)}<div><b>${v.name}</b><small>${v.desig||"—"}</small></div></div></td>
+      <td>${v.mob}</td>
+      <td>${v.co}</td>
+      <td>${v.host}</td>
+      <td>${v.purpose}</td>
+      <td>${v.inT}</td>
+      <td>${v.outT||"—"}</td>
+      <td><b style="color:var(--orange-2);">${liveDur(v)}</b></td>
+      <td>${pillHTML(v.st)}</td>
+      <td><div class="row-actions">
+        <button class="btn btn-ghost btn-xs" onclick="viewVisitor(${v.id})" title="View">👁</button>
+        <button class="btn btn-ghost btn-xs" onclick="viewBadge(${v.id})" title="Badge">🎫</button>
+        <button class="btn btn-ghost btn-xs" onclick="editVisitor(${v.id})" title="Edit">✎</button>
+        ${v.st!=='out'?`<button class="btn btn-success btn-xs" onclick="checkOut(${v.id})" title="Check Out">↗</button>`:''}
+        <button class="btn btn-danger btn-xs" onclick="deleteVisitor(${v.id})" title="Delete">🗑</button>
+      </div></td>
+    </tr>`).join('');
+  updateBulkBar();
+}
+
+/* Bulk action helpers */
+function toggleSelect(id,event){
+  if(event) event.stopPropagation();
+  if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+  document.querySelector(`tr [data-id="${id}"]`)?.closest('tr')?.classList.toggle('selected',selectedIds.has(id));
+  updateBulkBar();
+}
+function toggleSelectAll(){
+  const checked=document.getElementById('selectAll').checked;
+  document.querySelectorAll('.row-check').forEach(cb=>{
+    const id=parseInt(cb.dataset.id);
+    if(checked) selectedIds.add(id); else selectedIds.delete(id);
+    cb.checked=checked;
+    cb.closest('tr').classList.toggle('selected',checked);
+  });
+  updateBulkBar();
+}
+function clearBulkSelection(){
+  selectedIds.clear();
+  document.querySelectorAll('.row-check').forEach(cb=>{cb.checked=false;cb.closest('tr').classList.remove('selected');});
+  const sa=document.getElementById('selectAll');if(sa)sa.checked=false;
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const bar=document.getElementById('bulkBar');
+  if(!bar) return;
+  if(selectedIds.size>0){
+    bar.style.display='flex';
+    document.getElementById('bulkCount').textContent=selectedIds.size;
+  } else {
+    bar.style.display='none';
+  }
+}
+function bulkDelete(){
+  if(!selectedIds.size) return;
+  const n=selectedIds.size;
+  confirmAction(`Delete ${n} visitor${n>1?'s':''}?`,"This permanently removes the selected records. Continue?",()=>{
+    DB.visitors=DB.visitors.filter(v=>!selectedIds.has(v.id));
+    selectedIds.clear();save();renderAll();toast(`✓ ${n} record${n>1?'s':''} deleted`);
+  });
+}
+function bulkCheckOut(){
+  if(!selectedIds.size) return;
+  const toOut=DB.visitors.filter(v=>selectedIds.has(v.id) && v.st!=='out');
+  if(!toOut.length){toast("None of the selected need check-out");return;}
+  confirmAction(`Check out ${toOut.length} visitor${toOut.length>1?'s':''}?`,"Records exit time will be set to now.",()=>{
+    const t=nowHM();
+    toOut.forEach(v=>{v.outT=t;v.st='out';});
+    selectedIds.clear();save();renderAll();
+    toast(`✓ ${toOut.length} checked out`);
+  });
+}
+
+/* Date range modal */
+function openDateRangeModal(){
+  const r=currentDateRange;
+  document.getElementById('rangeFrom').value=r.from||today();
+  document.getElementById('rangeTo').value=r.to||today();
+  openModal('dateRangeModal');
+}
+function applyDateRange(){
+  const f=document.getElementById('rangeFrom').value;
+  const t=document.getElementById('rangeTo').value;
+  if(!f||!t){toast("⚠ Pick both dates",true);return;}
+  if(f>t){toast("⚠ 'From' must be before 'To'",true);return;}
+  currentDateRange={mode:'custom',from:f,to:t};
+  document.querySelectorAll('.chip[data-range]').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.chip[data-range="custom"]').classList.add('active');
+  closeModal('dateRangeModal');
+  renderAllVisitors();
+  toast(`✓ Filtered: ${f} to ${t}`);
+}
+function renderHostTable(){
+  const tb=document.getElementById('hostTable');
+  if(!DB.hosts.length){tb.innerHTML='<tr><td colspan="7"><div class="empty"><b>No hosts</b>Add your first host</div></td></tr>';return;}
+  tb.innerHTML=DB.hosts.map(h=>{
+    const todayCount=DB.visitors.filter(v=>v.host===h.name && v.date===today()).length;
+    return `<tr>
+      <td><div class="cell-user"><div class="row-avatar">${initials(h.name)}</div><div><b>${h.name}</b><small>${h.email||""}</small></div></div></td>
+      <td>${h.role}</td>
+      <td>${h.dept}</td>
+      <td>${h.mob}</td>
+      <td><span style="cursor:pointer;" onclick="toggleHostStatus(${h.id})" title="Click to toggle">${h.st==='online'?'<span class="pill in">● Online</span>':'<span class="pill pending">Away</span>'}</span></td>
+      <td><b>${todayCount}</b></td>
+      <td><div class="row-actions">
+        <button class="btn btn-ghost btn-xs" onclick="openHostModal(${h.id})">✎ Edit</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteHost(${h.id})">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleHostStatus(id){
+  const h=DB.hosts.find(x=>x.id===id);if(!h)return;
+  h.st=h.st==='online'?'away':'online';
+  save();renderHostTable();renderHostPicker();
+  toast(`✓ ${h.name} marked ${h.st==='online'?'Online':'Away'}`);
+}
+function renderSchedTable(){
+  const tb=document.getElementById('schedTable');
+  if(!DB.scheduled.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><b>No scheduled visits</b>Click "+ Schedule Visit" to add one</div></td></tr>';return;}
+  tb.innerHTML=DB.scheduled.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(s=>`
+    <tr>
+      <td><div class="cell-user"><div class="row-avatar">${initials(s.name)}</div><div><b>${s.name}</b><small>${s.co||""}</small></div></div></td>
+      <td>${s.mob}</td>
+      <td>${s.co||"—"}</td>
+      <td>${s.host}</td>
+      <td>${s.purpose}</td>
+      <td>${s.date} ${s.time||""}</td>
+      <td>${pillHTML(s.st)}</td>
+      <td><div class="row-actions">
+        <button class="btn btn-success btn-xs" onclick="markArrived(${s.id})" title="Mark Arrived & auto check-in">✓ Arrived</button>
+        <button class="btn btn-ghost btn-xs" onclick="openSchedModal(${s.id})">✎</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteSched(${s.id})">🗑</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function markArrived(id){
+  const s=DB.scheduled.find(x=>x.id===id);if(!s)return;
+  confirmAction(`Check in ${s.name}?`,"This will create a live visitor entry and notify the host.",()=>{
+    const newV={
+      id:DB.seq.visitor++,
+      name:s.name,mob:s.mob,addr:"—",co:s.co||"—",desig:"—",
+      idType:"Aadhaar",idNum:"",vehicle:"",count:0,
+      dept:(DB.hosts.find(h=>h.name===s.host)||{}).dept||"Operations",
+      purpose:s.purpose,remarks:`Pre-scheduled visit (auto checked-in from schedule #${s.id})`,
+      host:s.host,photo:null,
+      inT:nowHM(),outT:"",st:s.st==='approved'?'in':'pending',
+      date:today(),createdAt:Date.now()
+    };
+    DB.visitors.push(newV);
+    // Optionally remove from schedule
+    DB.scheduled=DB.scheduled.filter(x=>x.id!==id);
+    save();renderAll();
+    showWAPreview(newV);
+    toast("✓ Auto check-in created from schedule");
+  });
+}
+function renderBlacklistTable(){
+  const tb=document.getElementById('blacklistTable');
+  if(!DB.blacklist.length){tb.innerHTML='<tr><td colspan="7"><div class="empty"><b>No blacklisted visitors</b>Stay safe — add an entry if needed</div></td></tr>';return;}
+  tb.innerHTML=DB.blacklist.map(b=>`
+    <tr>
+      <td><div class="cell-user"><div class="row-avatar" style="background:linear-gradient(135deg,#ef4444,#991b1b);">${initials(b.name)}</div><div><b>${b.name}</b><small>${b.sub||""}</small></div></div></td>
+      <td>${b.mob}</td>
+      <td>${b.reason}</td>
+      <td>${b.by}</td>
+      <td>${b.date}</td>
+      <td><span class="pill banned">Banned</span></td>
+      <td><div class="row-actions">
+        <button class="btn btn-ghost btn-xs" onclick="openBlacklistModal(${b.id})">✎ Edit</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteBlacklist(${b.id})">🗑 Remove</button>
+      </div></td>
+    </tr>`).join('');
+}
+function renderLocList(){
+  const list=document.getElementById('locList');
+  if(!DB.locations.length){list.innerHTML='<div class="empty"><b>No locations</b>Add your first office</div>';return;}
+  list.innerHTML=DB.locations.map(l=>`
+    <div class="host">
+      <div class="row-avatar">${l.code||l.name.slice(0,2).toUpperCase()}</div>
+      <div class="host-info"><b>${l.name}</b><small>${l.addr||"—"}</small></div>
+      <span class="host-status ${l.st==='away'?'away':''}"></span>
+      <div class="row-actions" style="margin-left:10px;">
+        <button class="btn btn-ghost btn-xs" onclick="openLocModal(${l.id})">✎</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteLoc(${l.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+function renderReportTable(){
+  const tb=document.getElementById('reportTable');
+  const arr=DB.visitors.slice().sort((a,b)=>a.createdAt-b.createdAt);
+  document.getElementById('reportDate').textContent=`Date: ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})} • Total: ${arr.length}`;
+  if(!arr.length){tb.innerHTML='<tr><td colspan="8"><div class="empty">No visitor data yet</div></td></tr>';return;}
+  tb.innerHTML=arr.map((v,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><div class="cell-user">${avatarHTML(v.name,v.photo)}<div><b>${v.name}</b><small>${v.co}</small></div></div></td>
+      <td>${v.mob}</td>
+      <td>${v.host}</td>
+      <td>${v.purpose}</td>
+      <td>${v.inT}</td>
+      <td>${v.outT||"—"}</td>
+      <td><b style="color:var(--orange-2);">${liveDur(v)}</b></td>
+    </tr>`).join('');
+}
+
+/* ================== KPI ================== */
+function updateKPI(){
+  const total=DB.visitors.length;
+  const inside=DB.visitors.filter(v=>v.st==='in').length;
+  const pending=DB.visitors.filter(v=>v.st==='pending').length;
+  const done=DB.visitors.filter(v=>v.st==='out');
+  const avg=done.length?Math.round(done.reduce((s,v)=>s+durMinutes(v),0)/done.length):0;
+  document.getElementById('kpiTotal').textContent=total;
+  document.getElementById('kpiInside').textContent=inside;
+  document.getElementById('kpiPending').textContent=pending;
+  document.getElementById('kpiAvg').textContent=avg;
+
+  document.getElementById('rpTotal').textContent=total;
+  document.getElementById('rpAvg').textContent=avg;
+
+  // top host
+  const hostMap={};
+  DB.visitors.forEach(v=>{hostMap[v.host]=(hostMap[v.host]||0)+1;});
+  const topHost=Object.entries(hostMap).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+  document.getElementById('rpTopHost').textContent=topHost[0];
+  document.getElementById('rpTopHostCount').textContent=topHost[1]+" visitor"+(topHost[1]!==1?"s":"");
+
+  // top purpose
+  const purposeMap={};
+  DB.visitors.forEach(v=>{purposeMap[v.purpose]=(purposeMap[v.purpose]||0)+1;});
+  const topPurpose=Object.entries(purposeMap).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+  document.getElementById('rpTopPurpose').textContent=topPurpose[0];
+  document.getElementById('rpTopPurposeCount').textContent=topPurpose[1]+" visit"+(topPurpose[1]!==1?"s":"");
+}
+
+/* ================== CHARTS ================== */
+Chart.defaults.color="#8a8a96";
+Chart.defaults.font.family="Nunito";
+Chart.defaults.font.weight="600";
+const gridCol="rgba(255,255,255,0.05)";
+let charts={};
+function killCharts(){Object.values(charts).forEach(c=>c&&c.destroy());charts={};}
+
+function renderCharts(){
+  killCharts();
+  // Hourly
+  const hourly=new Array(12).fill(0);
+  DB.visitors.forEach(v=>{const h=parseInt((v.inT||"00:00").split(':')[0]);const idx=h-8;if(idx>=0&&idx<12)hourly[idx]++;});
+  const c1=document.getElementById('hourlyChart').getContext('2d');
+  const g=c1.createLinearGradient(0,0,0,300);g.addColorStop(0,"rgba(255,106,0,0.7)");g.addColorStop(1,"rgba(255,106,0,0.02)");
+  charts.hourly=new Chart(c1,{type:'line',data:{labels:['8AM','9','10','11','12','1PM','2','3','4','5','6','7'],datasets:[{label:'Check-ins',data:hourly,borderColor:'#ff6a00',backgroundColor:g,fill:true,tension:0.4,borderWidth:2.5,pointBackgroundColor:'#ff6a00',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridCol}},y:{grid:{color:gridCol},beginAtZero:true,ticks:{precision:0}}}}});
+
+  // Purpose
+  const pmap={};DB.visitors.forEach(v=>{pmap[v.purpose]=(pmap[v.purpose]||0)+1;});
+  const plabels=Object.keys(pmap),pvals=Object.values(pmap);
+  const pColors=['#ff6a00','#ffb347','#22c55e','#facc15','#3b82f6','#a855f7','#ef4444'];
+  ['purposeChart','purposeChart2'].forEach((id,i)=>{
+    const el=document.getElementById(id);if(!el)return;
+    charts[id]=new Chart(el.getContext('2d'),{type:'doughnut',data:{labels:plabels.length?plabels:['No data'],datasets:[{data:pvals.length?pvals:[1],backgroundColor:pColors,borderColor:'#0d0d14',borderWidth:3}]},options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{padding:14,boxWidth:10,boxHeight:10,usePointStyle:true,pointStyle:'circle',font:{size:11}}}}}});
+  });
+
+  // Week (build from current visitors grouped by weekday from date)
+  const weekLabels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const weekVals=new Array(7).fill(0);
+  DB.visitors.forEach(v=>{const d=new Date(v.date||v.createdAt);let wd=d.getDay();wd=wd===0?6:wd-1;weekVals[wd]++;});
+  charts.week=new Chart(document.getElementById('weekChart').getContext('2d'),{type:'bar',data:{labels:weekLabels,datasets:[{label:'Visitors',data:weekVals,backgroundColor:'#ff6a00',borderRadius:8,maxBarThickness:36}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:gridCol},beginAtZero:true,ticks:{precision:0}}}}});
+
+  // Dept avg duration
+  const dmap={};DB.visitors.forEach(v=>{if(v.st==='out'){const d=v.dept||"Other";if(!dmap[d])dmap[d]={s:0,c:0};dmap[d].s+=durMinutes(v);dmap[d].c++;}});
+  const dl=Object.keys(dmap),dv=dl.map(k=>Math.round(dmap[k].s/dmap[k].c));
+  charts.dept=new Chart(document.getElementById('deptChart').getContext('2d'),{type:'bar',data:{labels:dl.length?dl:['No data'],datasets:[{label:'Avg min',data:dv.length?dv:[0],backgroundColor:['#ff6a00','#ffb347','#ff8c00','#ff7333','#ff5500','#ffa07a'],borderRadius:8,maxBarThickness:42}]},options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:gridCol},beginAtZero:true},y:{grid:{display:false}}}}});
+
+  // Top hosts
+  const hmap={};DB.visitors.forEach(v=>{hmap[v.host]=(hmap[v.host]||0)+1;});
+  const sorted=Object.entries(hmap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  charts.host=new Chart(document.getElementById('topHostChart').getContext('2d'),{type:'bar',data:{labels:sorted.map(x=>x[0])||['—'],datasets:[{label:'Visitors',data:sorted.map(x=>x[1]),backgroundColor:'#ffb347',borderRadius:8,maxBarThickness:36}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:gridCol},beginAtZero:true,ticks:{precision:0}}}}});
+}
+
+/* ================== WHATSAPP PREVIEW ================== */
+let currentWAVisitor=null;
+function showWAPreview(v){
+  currentWAVisitor=v;
+  document.getElementById('waHostName').textContent=v.host;
+  document.getElementById('waHostName2').textContent=v.host;
+  document.getElementById('waHostFirst').textContent=v.host.split(' ')[0];
+  document.getElementById('waVName1').textContent=v.name;
+  document.getElementById('waVName2').textContent=v.name;
+  document.getElementById('waVFirst').textContent=v.name.split(' ')[0];
+  document.getElementById('waVMob1').textContent=v.mob;
+  document.getElementById('waVPurp').textContent=v.purpose;
+  document.getElementById('waVTime1').textContent=v.inT;
+  document.getElementById('waVTime2').textContent=v.date+" "+v.inT;
+
+  populateBadge(v);
+
+  resetCheckinForm();goPage('visitors');
+  openModal('waModal');
+  toast("✓ Check-in saved • WhatsApp ready to send");
+}
+
+/* ===== REAL WHATSAPP SENDING (wa.me links) ===== */
+function cleanPhone(num){
+  // strip non-digits, ensure country code (default India 91)
+  let d=(num||"").replace(/\D/g,'');
+  if(d.length===10) d="91"+d;
+  if(d.startsWith("0")) d="91"+d.slice(1);
+  return d;
+}
+function fillTemplate(tmpl,v,extra={}){
+  const dur=v.outT?fmtDur(durMinutes(v)):"";
+  const badgeId=`VMS-${(v.date||today()).replace(/-/g,'').slice(2)}-${String(v.id).padStart(4,'0')}`;
+  return (tmpl||"")
+    .replace(/{visitor_name}/g,v.name)
+    .replace(/{visitor_mobile}/g,v.mob)
+    .replace(/{host_name}/g,v.host)
+    .replace(/{purpose}/g,v.purpose)
+    .replace(/{company}/g,v.co&&v.co!=="—"?v.co:"")
+    .replace(/{date}/g,v.date)
+    .replace(/{time}/g,v.inT)
+    .replace(/{duration}/g,dur)
+    .replace(/{badge_url}/g,"#"+badgeId)
+    .replace(/{badge_id}/g,badgeId);
+}
+/* 
+ * WhatsApp sender — DUAL MODE:
+ * 1. If API token is set in Settings → calls the Business API (Meta/Twilio/Gupshup/Interakt)
+ * 2. Otherwise → opens wa.me link (free, works now, guard taps Send)
+ *
+ * To go live with auto-send: add your API token in Settings → WhatsApp API.
+ * The sendViaAPI() below is a ready template — replace the endpoint/payload
+ * with your provider's spec and point it at YOUR backend proxy (never expose
+ * the token in front-end code in production).
+ */
+async function sendViaAPI(phone,message){
+  const s=DB.settings;
+  // Example payload — adapt to your provider + route through your own backend:
+  const endpoints={
+    "Meta Cloud API":"https://graph.facebook.com/v19.0/PHONE_NUMBER_ID/messages",
+    "Twilio WhatsApp Business":"https://api.twilio.com/2010-04-01/Accounts/ACCOUNT_SID/Messages.json",
+    "Gupshup":"https://api.gupshup.io/wa/api/v1/msg",
+    "Interakt":"https://api.interakt.ai/v1/public/message/"
+  };
+  const endpoint=endpoints[s.provider]||"";
+  try{
+    // NOTE: This is a template. In production, POST to YOUR backend which holds the token.
+    const res=await fetch(endpoint,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+s.token},
+      body:JSON.stringify({
+        messaging_product:"whatsapp",
+        to:cleanPhone(phone),
+        type:"text",
+        text:{body:message}
+      })
+    });
+    if(res.ok){toast("✓ Sent via "+s.provider);return true;}
+    toast("⚠ API send failed — falling back to wa.me",true);
+    return false;
+  }catch(e){
+    console.warn("WhatsApp API error:",e);
+    toast("⚠ API unreachable — opening wa.me instead",true);
+    return false;
+  }
+}
+
+async function openWhatsApp(phone,message){
+  const s=DB.settings;
+  // API mode if token present
+  if(s.token && s.token.trim().length>5){
+    const ok=await sendViaAPI(phone,message);
+    if(ok) return;
+    // else fall through to wa.me
+  }
+  // wa.me mode (default, free)
+  const url=`https://wa.me/${cleanPhone(phone)}?text=${encodeURIComponent(message)}`;
+  window.open(url,'_blank');
+}
+function sendHostWhatsApp(){
+  if(!currentWAVisitor){toast("⚠ No visitor data",true);return;}
+  const v=currentWAVisitor;
+  const host=DB.hosts.find(h=>h.name===v.host);
+  if(!host||!host.mob){toast("⚠ Host ka mobile number nahi mila. Host Directory mein add karein.",true);return;}
+  const msg=fillTemplate(DB.settings.hostTmpl,v);
+  openWhatsApp(host.mob,msg);
+  toast("📲 Host ko message bhej rahe hain…");
+}
+function sendVisitorWhatsApp(){
+  if(!currentWAVisitor){toast("⚠ No visitor data",true);return;}
+  const v=currentWAVisitor;
+  const msg=fillTemplate(DB.settings.visitorTmpl,v);
+  openWhatsApp(v.mob,msg);
+  toast("📲 Visitor ko welcome bhej rahe hain…");
+}
+function sendBothWhatsApp(){
+  sendVisitorWhatsApp();
+  setTimeout(()=>sendHostWhatsApp(),700);
+}
+function sendCheckoutWhatsApp(v){
+  const msg=fillTemplate(DB.settings.outTmpl,v);
+  openWhatsApp(v.mob,msg);
+}
+
+let currentBadgeData=null;
+let validityTimerInt=null;
+
+function populateBadge(v){
+  currentBadgeData=v;
+  const badgeId=`VMS-${(v.date||today()).replace(/-/g,'').slice(2)}-${String(v.id).padStart(4,'0')}`;
+  const dateNice=new Date(v.date||today()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+
+  // ---------- FRONT ----------
+  document.getElementById('badgeIdFront').textContent=badgeId;
+  document.getElementById('badgeIdFooter').textContent=badgeId;
+  document.getElementById('badgeName').textContent=v.name;
+  document.getElementById('badgePurpose').textContent=v.purpose;
+
+  // Main photo (front)
+  const avEl=document.getElementById('badgeAvatar');
+  if(v.photo) avEl.innerHTML=`<img src="${v.photo}"/>`; else avEl.textContent=initials(v.name);
+
+  // Host info (find host in DB)
+  const hostRec=DB.hosts.find(h=>h.name===v.host);
+  document.getElementById('badgeHostName').textContent=v.host;
+
+  // Time / date
+  document.getElementById('badgeTime').textContent=v.inT;
+  document.getElementById('badgeDate').textContent=dateNice;
+
+  // ---------- BACK (printable) ----------
+  document.getElementById('badgeIdBack').textContent=badgeId;
+  document.getElementById('badgeBackName').textContent=v.name;
+  document.getElementById('badgeBackPurpose').textContent=v.purpose;
+  document.getElementById('badgeBackHost').textContent=v.host;
+  document.getElementById('badgeBackDept').textContent=hostRec?hostRec.dept:"—";
+  document.getElementById('badgeBackIn').textContent=v.inT;
+  document.getElementById('badgeBackDate').textContent=dateNice;
+  document.getElementById('badgeBackValid').textContent="Till "+endOfDayText();
+
+  const backPhEl=document.getElementById('badgeBackPhoto');
+  if(v.photo) backPhEl.innerHTML=`<img src="${v.photo}"/>`; else backPhEl.textContent=initials(v.name);
+
+  // QR codes (both sides)
+  const qrData=JSON.stringify({id:badgeId,name:v.name,mob:v.mob,host:v.host,time:v.inT,date:v.date});
+  if(typeof QRCode!=='undefined'){
+    try{
+      QRCode.toCanvas(document.getElementById('qrCanvas'),qrData,{width:140,margin:1,color:{dark:"#000",light:"#fff"}});
+      QRCode.toCanvas(document.getElementById('qrCanvasBack'),qrData,{width:140,margin:1,color:{dark:"#000",light:"#fff"}});
+    }catch(e){console.warn(e);}
+  }
+
+  // Validity timer
+  startValidityTimer();
+}
+
+function shortName(full){
+  if(!full) return "—";
+  const parts=full.trim().split(/\s+/);
+  if(parts.length===1) return parts[0];
+  return parts[0]+" "+parts[parts.length-1][0]+".";
+}
+
+function endOfDayText(){
+  return "23:59";
+}
+
+function startValidityTimer(){
+  if(validityTimerInt) clearInterval(validityTimerInt);
+  const update=()=>{
+    const now=new Date();
+    const eod=new Date();eod.setHours(23,59,0,0);
+    const ms=eod-now;
+    if(ms<=0){
+      document.getElementById('validityTimer').textContent="EXPIRED";
+      document.getElementById('validityBar').style.width="0%";
+      clearInterval(validityTimerInt);return;
+    }
+    const totalDayMin=24*60;
+    const remainMin=ms/60000;
+    const h=Math.floor(remainMin/60);
+    const m=Math.floor(remainMin%60);
+    document.getElementById('validityTimer').textContent=String(h).padStart(2,'0')+"h "+String(m).padStart(2,'0')+"m";
+    document.getElementById('validityBar').style.width=Math.min(100,(remainMin/totalDayMin)*100*2)+"%";
+  };
+  update();
+  validityTimerInt=setInterval(update,30000);
+}
+
+function showBadge(){
+  closeModal('waModal');
+  openModal('badgeModal');
+  flipBadge('front');
+}
+
+function viewBadge(id){
+  const v=DB.visitors.find(x=>x.id===id);
+  if(!v){toast("⚠ Visitor not found",true);return;}
+  populateBadge(v);
+  openModal('badgeModal');
+  flipBadge('front');
+}
+
+function flipBadge(side){
+  const card=document.getElementById('flipCard');
+  if(side==='back') card.classList.add('flipped');
+  else card.classList.remove('flipped');
+  document.querySelectorAll('.bt-pill').forEach(p=>p.classList.toggle('active',p.dataset.side===side));
+}
+
+function printBadge(){window.print();}
+
+async function downloadBadgePNG(){
+  if(typeof html2canvas==='undefined'){toast("⚠ Renderer not loaded",true);return;}
+  const card=document.getElementById('flipCard');
+  const isFlipped=card.classList.contains('flipped');
+  const target=isFlipped?document.getElementById('badgeBackCard'):document.getElementById('badgeFrontCard');
+  toast("⏳ Generating PNG…");
+  try{
+    const canvas=await html2canvas(target,{backgroundColor:null,scale:2,useCORS:true,logging:false});
+    const link=document.createElement('a');
+    const sideTxt=isFlipped?"back":"front";
+    const safeName=(currentBadgeData?.name||"visitor").replace(/[^a-z0-9]/gi,'_').toLowerCase();
+    link.download=`shivoffset-badge-${safeName}-${sideTxt}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    toast("✓ PNG downloaded");
+  }catch(e){console.error(e);toast("⚠ Download failed",true);}
+}
+
+async function shareBadge(){
+  if(!navigator.share){
+    // fallback — copy badge ID
+    const id=document.getElementById('badgeIdFront').textContent;
+    navigator.clipboard.writeText(`SHIVOFFSET Visitor Pass: ${id}`).then(()=>toast("✓ Badge ID copied to clipboard"));
+    return;
+  }
+  try{
+    const card=document.getElementById('flipCard').classList.contains('flipped')?document.getElementById('badgeBackCard'):document.getElementById('badgeFrontCard');
+    const canvas=await html2canvas(card,{backgroundColor:null,scale:2,useCORS:true});
+    canvas.toBlob(async blob=>{
+      const file=new File([blob],"shivoffset-badge.png",{type:"image/png"});
+      try{
+        await navigator.share({title:"SHIVOFFSET Visitor Pass",text:"Your visitor pass for SHIVOFFSET (I) PVT. LTD.",files:[file]});
+      }catch(e){toast("Share cancelled");}
+    });
+  }catch(e){toast("⚠ Share failed",true);}
+}
+
+function addToWallet(type){
+  const id=document.getElementById('badgeIdFront').textContent;
+  if(type==='apple'){
+    toast("⏳ Apple Wallet integration is a demo — .pkpass requires signed backend");
+  } else {
+    toast("⏳ Google Wallet integration is a demo — requires Google Wallet API setup");
+  }
+  // In production, you'd POST to a backend endpoint that signs a .pkpass or returns a Google Wallet save URL
+  console.log(`Wallet add request: ${type} — Badge ${id}`,currentBadgeData);
+}
+
+/* ================== EXPORT ================== */
+function exportCSV(){
+  const headers=["#","Name","Mobile","Address","Company","Designation","ID Type","ID Number","Vehicle","Accompanying","Department","Purpose","Host","Date","In","Out","Duration (min)","Status","Remarks"];
+  const rows=DB.visitors.map((v,i)=>[i+1,v.name,v.mob,v.addr,v.co,v.desig,v.idType,v.idNum,v.vehicle,v.count,v.dept,v.purpose,v.host,v.date,v.inT,v.outT,durMinutes(v),v.st,v.remarks||""].map(x=>`"${(x??"").toString().replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`shivoffset-visitors-${today()}.csv`;a.click();
+  URL.revokeObjectURL(url);
+  toast("✓ CSV exported");
+}
+
+/* ================== FILTERS ================== */
+/* ================== STATUS FILTER CHIPS ================== */
+document.querySelectorAll('.chip[data-filter]').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.chip[data-filter]').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active');
+  currentFilter=c.dataset.filter;
+  renderAllVisitors();
+}));
+
+/* ================== DATE RANGE CHIPS ================== */
+document.querySelectorAll('.chip[data-range]').forEach(c=>c.addEventListener('click',()=>{
+  const r=c.dataset.range;
+  if(r==='custom') return; // handled separately
+  document.querySelectorAll('.chip[data-range]').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active');
+  currentDateRange={mode:r,from:null,to:null};
+  renderAllVisitors();
+}));
+
+/* ================== GLOBAL SEARCH ================== */
+let searchTimer=null;
+document.getElementById('globalSearch').addEventListener('input',e=>{
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{
+    const q=e.target.value.trim().toLowerCase();
+    if(!q){renderAllVisitors();return;}
+    goPage('visitors');
+    const tb=document.getElementById('allVisitors');
+    const arr=DB.visitors.filter(v=>JSON.stringify(v).toLowerCase().includes(q));
+    document.getElementById('visitorCount').textContent=`Search "${q}" — ${arr.length} result(s)`;
+    if(!arr.length){tb.innerHTML='<tr><td colspan="11"><div class="empty"><b>No matches</b>Try a different search</div></td></tr>';return;}
+    tb.innerHTML=arr.map(v=>`
+      <tr class="${selectedIds.has(v.id)?'selected':''}">
+        <td><input type="checkbox" class="row-check" data-id="${v.id}" ${selectedIds.has(v.id)?'checked':''} onclick="toggleSelect(${v.id},event)"/></td>
+        <td><div class="cell-user">${avatarHTML(v.name,v.photo,true)}<div><b>${v.name}</b><small>${v.desig||"—"}</small></div></div></td>
+        <td>${v.mob}</td><td>${v.co}</td><td>${v.host}</td><td>${v.purpose}</td>
+        <td>${v.inT}</td><td>${v.outT||"—"}</td><td><b style="color:var(--orange-2);">${liveDur(v)}</b></td>
+        <td>${pillHTML(v.st)}</td>
+        <td><div class="row-actions">
+          <button class="btn btn-ghost btn-xs" onclick="viewVisitor(${v.id})">👁</button>
+          <button class="btn btn-ghost btn-xs" onclick="viewBadge(${v.id})">🎫</button>
+          <button class="btn btn-ghost btn-xs" onclick="editVisitor(${v.id})">✎</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteVisitor(${v.id})">🗑</button>
+        </div></td>
+      </tr>`).join('');
+  },200);
+});
+
+/* close modal on backdrop click */
+document.querySelectorAll('.modal-wrap').forEach(m=>m.addEventListener('click',e=>{if(e.target===m){closeModal(m.id);}}));
+
+/* ================== KEYBOARD SHORTCUTS ================== */
+document.addEventListener('keydown',e=>{
+  // Don't intercept when user is typing in inputs
+  const tag=(e.target.tagName||"").toLowerCase();
+  const inField=tag==='input'||tag==='textarea'||tag==='select';
+
+  // Escape always closes any open modal
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal-wrap.show').forEach(m=>closeModal(m.id));
+    return;
+  }
+  if(inField){
+    // Allow Ctrl+K even in fields (focus search)
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+      e.preventDefault();
+      const s=document.getElementById('globalSearch');s.focus();s.select();
+    }
+    return;
+  }
+  // Ctrl/Cmd shortcuts
+  if(e.ctrlKey||e.metaKey){
+    const k=e.key.toLowerCase();
+    if(k==='n'){e.preventDefault();goPage('checkin');}
+    else if(k==='1'){e.preventDefault();goPage('dashboard');}
+    else if(k==='2'){e.preventDefault();goPage('visitors');}
+    else if(k==='3'){e.preventDefault();goPage('reports');}
+    else if(k==='k'){e.preventDefault();const s=document.getElementById('globalSearch');s.focus();s.select();}
+  } else if(e.key==='?'){
+    e.preventDefault();openModal('shortcutsModal');
+  }
+});
+
+/* Top help icon opens shortcuts */
+document.querySelectorAll('.icon-btn').forEach(b=>{
+  if(b.textContent.trim()==='?') b.addEventListener('click',()=>openModal('shortcutsModal'));
+});
+
+/* ================== INIT ================== */
+loadSettingsForm();
+refreshAllDropdowns();
+renderAll();
+renderCharts();
+
+// live duration refresh every 30s
+setInterval(()=>{renderLive();if(document.querySelector('.page[data-page="visitors"]').classList.contains('active'))renderAllVisitors();updateKPI();},30000);
+
+// Welcome toast
+setTimeout(()=>toast(`✓ ${DB.visitors.length} visitor records loaded • Press ? for shortcuts`),300);
+</script>
+</body>
+</html>
