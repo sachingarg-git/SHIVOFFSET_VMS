@@ -16,6 +16,42 @@ async function trySendWA(phone, msg, label) {
   }
 }
 
+// ─── Load WA message templates from vms_settings ────────────────────────────
+async function getTemplates() {
+  try {
+    const pool = await getPool();
+    const r = await pool.request().query(
+      `SELECT settingKey, settingValue FROM vms_settings
+       WHERE settingKey IN ('visitorTmpl','hostTmpl','approvalTmpl','outTmpl')`
+    );
+    const t = {};
+    r.recordset.forEach(row => { t[row.settingKey] = row.settingValue; });
+    return t;
+  } catch { return {}; }
+}
+
+// ─── Fill template variables ──────────────────────────────────────────────────
+function fillMsg(tmpl, v, extra = {}) {
+  const durMin = extra.durMin || 0;
+  const duration = durMin > 0
+    ? (durMin >= 60 ? `${Math.floor(durMin/60)}h ${durMin%60}m` : `${durMin}m`)
+    : '';
+  return (tmpl || '')
+    .replace(/{visitor_name}/g,   v.name    || '')
+    .replace(/{visitor_first}/g,  (v.name   || '').split(' ')[0])
+    .replace(/{visitor_mobile}/g, v.mob     || '')
+    .replace(/{host_name}/g,      v.host    || '')
+    .replace(/{host_first}/g,     (v.host   || '').split(' ')[0])
+    .replace(/{purpose}/g,        v.purpose || '—')
+    .replace(/{company}/g,        (v.co && v.co !== '—') ? v.co : '—')
+    .replace(/{date}/g,           v.date    || v.visitDate || '')
+    .replace(/{time}/g,           v.inT     || '')
+    .replace(/{out_time}/g,       v.outT    || '')
+    .replace(/{duration}/g,       duration)
+    .replace(/{approved_by}/g,    extra.approvedBy || '')
+    .replace(/{badge_id}/g,       `VMS-${v.id || ''}`);
+}
+
 // Helper — map a DB row to API shape
 function mapRow(r) {
   return {
@@ -129,38 +165,32 @@ router.post('/', async (req, res) => {
 
     // ── Auto WhatsApp: visitor welcome + host alert (fire-and-forget) ─────────
     const hostName = v.host || '';
-    const visitorMsg =
-      `🙏 Welcome to SHIVOFFSET (I) PVT. LTD.!\n\n` +
-      `Hi ${(v.name || '').split(' ')[0]} 👋,\n` +
-      `Aap check-in ho chuke hain on ${v.date || ''} at ${v.inT || ''}.\n` +
-      `Aapke host *${hostName}* ko notify kar diya gaya hai.\n` +
-      `Aapka visitor ID: VMS-${newId}\n\n` +
-      `Dhanyavaad! 🙏`;
-    // Fetch host mobile — vms_users first (real number set by admin), then vms_hosts as fallback
-    (async () => {
+    const visitorData = { ...v, id: newId };
+    ;(async () => {
       try {
-        const pool2 = await getPool();
-        // 1st: vms_users — real mobile set via User Management page
+        const pool2  = await getPool();
+        const tmpls  = await getTemplates();
+
+        // Default templates if not set in DB
+        const defaultVisitorTmpl =
+          `🙏 Welcome to SHIVOFFSET (I) PVT. LTD.!\n\nHi {visitor_first} 👋,\nAap check-in ho chuke hain on {date} at {time}.\nAapke host *{host_name}* ko notify kar diya gaya hai.\nAapka visitor ID: {badge_id}\n\nDhanyavaad! 🙏`;
+        const defaultHostTmpl =
+          `🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\nHi {host_first},\n*{visitor_name}* aapse milne aaye hain.\n\n📞 Mobile: {visitor_mobile}\n🎯 Purpose: {purpose}\n🏢 Company: {company}\n🕐 Check-in: {time}\n\n_Visitor reception par wait kar rahe hain. Please approve karein._`;
+
+        const visitorMsg = fillMsg(tmpls.visitorTmpl || defaultVisitorTmpl, visitorData);
+        const hostMsg    = fillMsg(tmpls.hostTmpl    || defaultHostTmpl,    visitorData);
+
+        // Resolve host mobile — vms_users first, then vms_hosts
         const uRow = await pool2.request()
           .input('hn', sql.NVarChar, hostName)
           .query(`SELECT mob FROM vms_users WHERE LOWER(name)=LOWER(@hn)`);
         let hostMob = uRow.recordset[0]?.mob || '';
-        // Fallback: vms_hosts (for external hosts who are not system users)
         if (!hostMob) {
           const hRow = await pool2.request()
             .input('hn', sql.NVarChar, hostName)
             .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@hn)`);
           hostMob = hRow.recordset[0]?.mob || '';
         }
-        const hostMsg =
-          `🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\n` +
-          `Hi ${hostName.split(' ')[0]},\n` +
-          `*${v.name}* aapse milne aaye hain.\n\n` +
-          `📞 Mobile: ${v.mob}\n` +
-          `🎯 Purpose: ${v.purpose || '—'}\n` +
-          `🏢 Company: ${v.co && v.co !== '—' ? v.co : '—'}\n` +
-          `🕐 Check-in: ${v.inT || ''}\n\n` +
-          `_Visitor reception par wait kar rahe hain. Please approve karein._`;
         await trySendWA(v.mob,   visitorMsg, 'visitor welcome');
         await trySendWA(hostMob, hostMsg,    'host alert');
       } catch {}
@@ -212,19 +242,14 @@ router.put('/:id/approve', async (req, res) => {
         const pool2 = await getPool();
         const full = await pool2.request()
           .input('id', sql.Int, parseInt(req.params.id))
-          .query(`SELECT name, mob, host, purpose, inT FROM vms_visitors WHERE id=@id`);
+          .query(`SELECT id, name, mob, host, purpose, inT, visitDate FROM vms_visitors WHERE id=@id`);
         const vis = full.recordset[0];
         if (!vis) return;
         const approvedBy = req.user.name || req.user.username;
-        const msg =
-          `✅ *Aapki entry approve ho gayi!*\n\n` +
-          `Hi ${(vis.name || '').split(' ')[0]} 👋,\n` +
-          `*${approvedBy}* ne aapki visit approve kar di hai.\n` +
-          `Aap ab andar ja sakte hain.\n\n` +
-          `🎯 Purpose: ${vis.purpose || '—'}\n` +
-          `🕐 Check-in: ${vis.inT || ''}\n` +
-          `🏢 Host: ${vis.host}\n\n` +
-          `_SHIVOFFSET (I) PVT. LTD. mein aapka swagat hai! 🙏_`;
+        const tmpls = await getTemplates();
+        const defaultApprovalTmpl =
+          `✅ *Aapki entry approve ho gayi!*\n\nHi {visitor_first} 👋,\n*{approved_by}* ne aapki visit approve kar di hai.\nAap ab andar ja sakte hain.\n\n🎯 Purpose: {purpose}\n🕐 Check-in: {time}\n🏢 Host: {host_name}\n\n_SHIVOFFSET (I) PVT. LTD. mein aapka swagat hai! 🙏_`;
+        const msg = fillMsg(tmpls.approvalTmpl || defaultApprovalTmpl, vis, { approvedBy });
         await trySendWA(vis.mob, msg, 'approval notify to visitor');
       } catch {}
     })();
@@ -270,21 +295,13 @@ router.put('/:id', async (req, res) => {
     if (v.st === 'out' && v.outT && v.mob) {
       (async () => {
         try {
-          // Calculate duration
           const [inH, inM]   = (v.inT  || '00:00').split(':').map(Number);
           const [outH, outM] = (v.outT || '00:00').split(':').map(Number);
           const durMin = (outH * 60 + outM) - (inH * 60 + inM);
-          const durStr = durMin > 0
-            ? (durMin >= 60 ? `${Math.floor(durMin/60)}h ${durMin%60}m` : `${durMin}m`)
-            : '';
-          const msg =
-            `🙏 *Thank you for visiting SHIVOFFSET!*\n\n` +
-            `Hi ${(v.name || '').split(' ')[0]} 👋,\n` +
-            `Aapki visit successfully complete hui.\n\n` +
-            `🕐 Check-in:  ${v.inT || ''}\n` +
-            `🕑 Check-out: ${v.outT}\n` +
-            `⏱  Duration:  ${durStr || '—'}\n\n` +
-            `_Phir milenge! SHIVOFFSET (I) PVT. LTD. 😊_`;
+          const tmpls = await getTemplates();
+          const defaultOutTmpl =
+            `🙏 *Thank you for visiting SHIVOFFSET!*\n\nHi {visitor_first} 👋,\nAapki visit successfully complete hui.\n\n🕐 Check-in:  {time}\n🕑 Check-out: {out_time}\n⏱  Duration:  {duration}\n\n_Phir milenge! SHIVOFFSET (I) PVT. LTD. 😊_`;
+          const msg = fillMsg(tmpls.outTmpl || defaultOutTmpl, v, { durMin });
           await trySendWA(v.mob, msg, 'checkout thank-you');
         } catch {}
       })();

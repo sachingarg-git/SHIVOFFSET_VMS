@@ -244,9 +244,10 @@ async function initDB() {
       ['provider','Twilio WhatsApp Business'],
       ['sender','+91 89000 60000'],
       ['token',''],
-      ['visitorTmpl','🙏 Welcome to SHIVOFFSET (I) PVT. LTD.! Hi {visitor_name} 👋, aap check-in ho chuke hain on {date} {time}. Aapke host {host_name} ko notify kar diya gaya hai.'],
-      ['hostTmpl','🔔 Visitor Alert — Hi {host_name}, {visitor_name} aapse milne aaye hain. Purpose: {purpose}. Mobile: {visitor_mobile}. Check-in: {time}.'],
-      ['outTmpl','🙏 Thank you {visitor_name} for visiting SHIVOFFSET! Aapne {duration} time spend kiya. Phir milenge 😊'],
+      ['visitorTmpl','🙏 Welcome to SHIVOFFSET (I) PVT. LTD.!\n\nHi {visitor_first} 👋,\nAap check-in ho chuke hain on {date} at {time}.\nAapke host *{host_name}* ko notify kar diya gaya hai.\nAapka visitor ID: {badge_id}\n\nDhanyavaad! 🙏'],
+      ['hostTmpl','🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\nHi {host_first},\n*{visitor_name}* aapse milne aaye hain.\n\n📞 Mobile: {visitor_mobile}\n🎯 Purpose: {purpose}\n🏢 Company: {company}\n🕐 Check-in: {time}\n\n_Visitor reception par wait kar rahe hain. Please approve karein._'],
+      ['approvalTmpl','✅ *Aapki entry approve ho gayi!*\n\nHi {visitor_first} 👋,\n*{approved_by}* ne aapki visit approve kar di hai.\nAap ab andar ja sakte hain.\n\n🎯 Purpose: {purpose}\n🕐 Check-in: {time}\n🏢 Host: {host_name}\n\n_SHIVOFFSET (I) PVT. LTD. mein aapka swagat hai! 🙏_'],
+      ['outTmpl','🙏 *Thank you for visiting SHIVOFFSET!*\n\nHi {visitor_first} 👋,\nAapki visit successfully complete hui.\n\n🕐 Check-in:  {time}\n🕑 Check-out: {out_time}\n⏱  Duration:  {duration}\n\n_Phir milenge! SHIVOFFSET (I) PVT. LTD. 😊_'],
     ];
     for (const [k, v] of defaults) {
       await p.request().input('k', sql.NVarChar, k).input('v', sql.NVarChar, v)

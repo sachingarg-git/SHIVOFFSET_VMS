@@ -118,7 +118,7 @@ function RoleNavCard({ roleNav, saveRoleNav }) {
 
 export default function Settings() {
   const { settings, locations, options, saveSettings, addLocation, updateLocation, deleteLocation, addOption, removeOption, showToast, confirmAction, roleNav, saveRoleNav } = useApp();
-  const [form, setForm] = useState({ provider: '', sender: '', token: '', visitorTmpl: '', hostTmpl: '', outTmpl: '' });
+  const [form, setForm] = useState({ provider: '', sender: '', token: '', visitorTmpl: '', hostTmpl: '', approvalTmpl: '', outTmpl: '' });
   const [locModalOpen, setLocModalOpen] = useState(false);
   const [editLoc, setEditLoc] = useState(null);
   const [optModal, setOptModal] = useState(null); // 'purpose' | 'dept' | null
@@ -210,16 +210,26 @@ export default function Settings() {
   const STATUS_COLOR = { disconnected: '#94a3b8', connecting: '#f59e0b', qr_ready: '#3b82f6', connected: '#22c55e' };
   const STATUS_LABEL = { disconnected: 'Not Connected', connecting: 'Connecting...', qr_ready: 'Scan QR Code', connected: 'Connected ✅' };
 
+  const [tmplSaving, setTmplSaving] = useState(false);
+
   useEffect(() => {
     if (settings) setForm({
-      provider: settings.provider || 'Twilio WhatsApp Business',
-      sender: settings.sender || '',
-      token: settings.token || '',
-      visitorTmpl: settings.visitorTmpl || '',
-      hostTmpl: settings.hostTmpl || '',
-      outTmpl: settings.outTmpl || '',
+      provider:     settings.provider     || 'Twilio WhatsApp Business',
+      sender:       settings.sender       || '',
+      token:        settings.token        || '',
+      visitorTmpl:  settings.visitorTmpl  || '',
+      hostTmpl:     settings.hostTmpl     || '',
+      approvalTmpl: settings.approvalTmpl || '',
+      outTmpl:      settings.outTmpl      || '',
     });
   }, [settings]);
+
+  const saveTemplates = async () => {
+    setTmplSaving(true);
+    await saveSettings({ visitorTmpl: form.visitorTmpl, hostTmpl: form.hostTmpl, approvalTmpl: form.approvalTmpl, outTmpl: form.outTmpl });
+    showToast('✓ WhatsApp templates saved');
+    setTmplSaving(false);
+  };
 
   const handleDeleteLoc = (l) => {
     confirmAction(`Delete ${l.name}?`, 'This location will be removed.', () => { deleteLocation(l.id); showToast('✓ Location deleted'); });
@@ -368,6 +378,109 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── WhatsApp Message Templates — full width ── */}
+      <div className="card" style={{ marginTop: 0 }}>
+        <div className="card-hd">
+          <div>
+            <h3>📝 WhatsApp Message Templates</h3>
+            <p>Customize auto-sent messages for check-in, approval &amp; checkout</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={saveTemplates} disabled={tmplSaving}>
+            {tmplSaving ? <><span className="loading-spin" /> Saving…</> : '✓ Save Templates'}
+          </button>
+        </div>
+
+        {/* Variable chips */}
+        <div style={{ marginBottom: 18, padding: '10px 14px', borderRadius: 10, background: 'rgba(37,211,102,0.06)', border: '1px solid rgba(37,211,102,0.2)', fontSize: 11 }}>
+          <b style={{ color: '#25D366', display: 'block', marginBottom: 6 }}>📌 Available Variables — click to copy:</b>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {[
+              ['{visitor_name}',   'Full name of visitor'],
+              ['{visitor_first}',  'First name of visitor'],
+              ['{visitor_mobile}', 'Visitor mobile number'],
+              ['{host_name}',      'Full name of host'],
+              ['{host_first}',     'First name of host'],
+              ['{purpose}',        'Purpose of visit'],
+              ['{company}',        'Visitor\'s company'],
+              ['{date}',           'Visit date'],
+              ['{time}',           'Check-in time'],
+              ['{out_time}',       'Check-out time'],
+              ['{duration}',       'Visit duration (e.g. 1h 30m)'],
+              ['{approved_by}',    'Name of approver'],
+              ['{badge_id}',       'Visitor badge ID (e.g. VMS-42)'],
+            ].map(([v, desc]) => (
+              <span key={v} title={desc}
+                onClick={() => { navigator.clipboard.writeText(v); showToast(`📋 Copied ${v}`); }}
+                style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.3)', color: '#25D366', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>
+                {v}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {/* Visitor Check-in */}
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 12, display: 'block', marginBottom: 6, color: 'var(--text)' }}>
+              🙏 Visitor Welcome <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(sent to visitor at check-in)</span>
+            </label>
+            <textarea
+              rows={7}
+              value={form.visitorTmpl}
+              onChange={e => setForm(f => ({ ...f, visitorTmpl: e.target.value }))}
+              placeholder="🙏 Welcome to SHIVOFFSET!\n\nHi {visitor_first} 👋,\nAap check-in ho chuke hain on {date} at {time}.\nHost {host_name} ko notify kar diya gaya hai.\nVisitor ID: {badge_id}"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical' }}
+            />
+          </div>
+
+          {/* Host Alert */}
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 12, display: 'block', marginBottom: 6, color: 'var(--text)' }}>
+              🔔 Host Alert <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(sent to host when visitor arrives)</span>
+            </label>
+            <textarea
+              rows={7}
+              value={form.hostTmpl}
+              onChange={e => setForm(f => ({ ...f, hostTmpl: e.target.value }))}
+              placeholder="🔔 Visitor Alert\n\nHi {host_first}, {visitor_name} aapse milne aaye hain.\nPurpose: {purpose}\nMobile: {visitor_mobile}\nCheck-in: {time}"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical' }}
+            />
+          </div>
+
+          {/* Approval */}
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 12, display: 'block', marginBottom: 6, color: 'var(--text)' }}>
+              ✅ Approval Confirmation <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(sent to visitor when approved)</span>
+            </label>
+            <textarea
+              rows={7}
+              value={form.approvalTmpl}
+              onChange={e => setForm(f => ({ ...f, approvalTmpl: e.target.value }))}
+              placeholder="✅ Aapki entry approve ho gayi!\n\nHi {visitor_first},\n{approved_by} ne aapki visit approve kar di.\nAap andar ja sakte hain.\n\nPurpose: {purpose}"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical' }}
+            />
+          </div>
+
+          {/* Checkout */}
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 12, display: 'block', marginBottom: 6, color: 'var(--text)' }}>
+              👋 Checkout Thank-you <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(sent to visitor at check-out)</span>
+            </label>
+            <textarea
+              rows={7}
+              value={form.outTmpl}
+              onChange={e => setForm(f => ({ ...f, outTmpl: e.target.value }))}
+              placeholder="🙏 Thank you for visiting SHIVOFFSET!\n\nHi {visitor_first},\nCheck-in: {time}\nCheck-out: {out_time}\nDuration: {duration}\n\nPhir milenge! 😊"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', lineHeight: 1.7, resize: 'vertical' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(250,204,21,0.06)', border: '1px solid rgba(250,204,21,0.2)', fontSize: 12, color: 'var(--muted)' }}>
+          💡 Use <b>*text*</b> for bold in WhatsApp. Variables in <b style={{ color: '#25D366' }}>{'{curly braces}'}</b> are replaced with real data at send time. Leave blank to use default system template.
         </div>
       </div>
 
