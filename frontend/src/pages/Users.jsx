@@ -24,10 +24,11 @@ function RoleBadge({ role }) {
 function UserModal({ user, onClose, onSave }) {
   const isEdit = !!user;
   const [form, setForm] = useState({
-    name: user?.name || '',
-    username: user?.username || '',
-    role: user?.role || 'guard',
-    password: '',
+    name:            user?.name     || '',
+    username:        user?.username || '',
+    role:            user?.role     || 'guard',
+    mob:             user?.mob      || '',
+    password:        '',
     confirmPassword: '',
   });
   const [err, setErr] = useState('');
@@ -44,9 +45,10 @@ function UserModal({ user, onClose, onSave }) {
     if (!isEdit && !form.password) return setErr('Password is required for new users');
     if (form.password && form.password.length < 6) return setErr('Password must be at least 6 characters');
     if (form.password && form.password !== form.confirmPassword) return setErr('Passwords do not match');
+    if (form.mob && !/^[0-9+\-\s]{7,15}$/.test(form.mob.trim())) return setErr('Invalid mobile number');
 
     setSaving(true);
-    const data = { name: form.name.trim(), username: form.username.trim().toLowerCase(), role: form.role };
+    const data = { name: form.name.trim(), username: form.username.trim().toLowerCase(), role: form.role, mob: form.mob.trim() };
     if (form.password) data.password = form.password;
     await onSave(data);
     setSaving(false);
@@ -90,6 +92,17 @@ function UserModal({ user, onClose, onSave }) {
             <select value={form.role} onChange={e => set('role', e.target.value)}>
               {ROLES.map(r => <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>)}
             </select>
+          </div>
+
+          <div className="field field-full">
+            <label>📱 Mobile Number <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>(WhatsApp alerts jayenge)</span></label>
+            <input
+              value={form.mob}
+              onChange={e => set('mob', e.target.value)}
+              placeholder="e.g. 9876543210"
+              type="tel"
+              inputMode="numeric"
+            />
           </div>
 
           <div className="field">
@@ -171,6 +184,7 @@ export default function Users() {
               <tr>
                 <th>User</th>
                 <th>Username</th>
+                <th>Mobile</th>
                 <th>Role</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -178,7 +192,7 @@ export default function Users() {
             </thead>
             <tbody>
               {!users.length ? (
-                <tr><td colSpan={5}><div className="empty"><b>No users found</b>Loading users…</div></td></tr>
+                <tr><td colSpan={6}><div className="empty"><b>No users found</b>Loading users…</div></td></tr>
               ) : users.map(u => (
                 <tr key={u.id} style={isSelf(u) ? { background: 'rgba(255,106,0,0.05)' } : {}}>
                   <td>
@@ -194,6 +208,15 @@ export default function Users() {
                   </td>
                   <td style={{ fontFamily: "'Space Grotesk',monospace", fontSize: 12, color: 'var(--muted)' }}>
                     @{u.username}
+                  </td>
+                  <td style={{ fontSize: 13 }}>
+                    {u.mob
+                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontSize: 14 }}>📱</span>
+                          <span>{u.mob}</span>
+                        </span>
+                      : <span style={{ color: 'var(--muted)', fontSize: 11 }}>— not set</span>
+                    }
                   </td>
                   <td><RoleBadge role={u.role} /></td>
                   <td style={{ fontSize: 12, color: 'var(--muted)' }}>

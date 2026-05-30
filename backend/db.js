@@ -143,7 +143,10 @@ async function initDB() {
        isRead   BIT           DEFAULT 0,
        relatedId INT          DEFAULT NULL,
        createdAt DATETIME     DEFAULT GETDATE()
-     )`
+     )`,
+    // Add mob (mobile number) to vms_users — for WhatsApp alerts to managers/hosts
+    `IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id=OBJECT_ID('vms_users') AND name='mob')
+       ALTER TABLE vms_users ADD mob NVARCHAR(20) DEFAULT ''`
   ];
   for (const m of migrations) {
     await p.request().query(m);

@@ -136,14 +136,21 @@ router.post('/', async (req, res) => {
       `Aapke host *${hostName}* ko notify kar diya gaya hai.\n` +
       `Aapka visitor ID: VMS-${newId}\n\n` +
       `Dhanyavaad! 🙏`;
-    // Fetch host mobile from vms_hosts
+    // Fetch host mobile — check vms_hosts first, then vms_users as fallback
     (async () => {
       try {
         const pool2 = await getPool();
         const hRow = await pool2.request()
           .input('hn', sql.NVarChar, hostName)
           .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@hn)`);
-        const hostMob = hRow.recordset[0]?.mob || '';
+        let hostMob = hRow.recordset[0]?.mob || '';
+        // Fallback: look up manager/user by display name in vms_users
+        if (!hostMob) {
+          const uRow = await pool2.request()
+            .input('hn', sql.NVarChar, hostName)
+            .query(`SELECT mob FROM vms_users WHERE LOWER(name)=LOWER(@hn)`);
+          hostMob = uRow.recordset[0]?.mob || '';
+        }
         const hostMsg =
           `🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\n` +
           `Hi ${hostName.split(' ')[0]},\n` +
