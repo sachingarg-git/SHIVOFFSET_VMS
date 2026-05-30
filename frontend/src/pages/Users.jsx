@@ -23,11 +23,13 @@ function RoleBadge({ role }) {
 
 function UserModal({ user, onClose, onSave }) {
   const isEdit = !!user;
+  const { options } = useApp();
   const [form, setForm] = useState({
     name:            user?.name     || '',
     username:        user?.username || '',
     role:            user?.role     || 'guard',
     mob:             user?.mob      || '',
+    dept:            user?.dept     || '',
     password:        '',
     confirmPassword: '',
   });
@@ -48,7 +50,7 @@ function UserModal({ user, onClose, onSave }) {
     if (form.mob && !/^[0-9+\-\s]{7,15}$/.test(form.mob.trim())) return setErr('Invalid mobile number');
 
     setSaving(true);
-    const data = { name: form.name.trim(), username: form.username.trim().toLowerCase(), role: form.role, mob: form.mob.trim() };
+    const data = { name: form.name.trim(), username: form.username.trim().toLowerCase(), role: form.role, mob: form.mob.trim(), dept: form.dept.trim() };
     if (form.password) data.password = form.password;
     await onSave(data);
     setSaving(false);
@@ -91,6 +93,14 @@ function UserModal({ user, onClose, onSave }) {
             <label>Role <span className="req">*</span></label>
             <select value={form.role} onChange={e => set('role', e.target.value)}>
               {ROLES.map(r => <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>)}
+            </select>
+          </div>
+
+          <div className="field field-full">
+            <label>🏢 Department <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 400 }}>(check-in mein auto-filter hoga)</span></label>
+            <select value={form.dept} onChange={e => set('dept', e.target.value)}>
+              <option value="">— None / Unassigned —</option>
+              {options.dept.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 
@@ -186,13 +196,14 @@ export default function Users() {
                 <th>Username</th>
                 <th>Mobile</th>
                 <th>Role</th>
+                <th>Department</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {!users.length ? (
-                <tr><td colSpan={6}><div className="empty"><b>No users found</b>Loading users…</div></td></tr>
+                <tr><td colSpan={7}><div className="empty"><b>No users found</b>Loading users…</div></td></tr>
               ) : users.map(u => (
                 <tr key={u.id} style={isSelf(u) ? { background: 'rgba(255,106,0,0.05)' } : {}}>
                   <td>
@@ -219,6 +230,12 @@ export default function Users() {
                     }
                   </td>
                   <td><RoleBadge role={u.role} /></td>
+                  <td style={{ fontSize: 12 }}>
+                    {u.dept
+                      ? <span style={{ padding: '3px 9px', borderRadius: 8, background: 'rgba(59,130,246,0.12)', color: '#60a5fa', fontSize: 11, fontWeight: 700, border: '1px solid rgba(59,130,246,0.25)' }}>{u.dept}</span>
+                      : <span style={{ color: 'var(--muted)', fontSize: 11 }}>— none</span>
+                    }
+                  </td>
                   <td style={{ fontSize: 12, color: 'var(--muted)' }}>
                     {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—'}
                   </td>

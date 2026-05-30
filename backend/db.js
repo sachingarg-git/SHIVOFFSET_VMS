@@ -146,7 +146,10 @@ async function initDB() {
      )`,
     // Add mob (mobile number) to vms_users — for WhatsApp alerts to managers/hosts
     `IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id=OBJECT_ID('vms_users') AND name='mob')
-       ALTER TABLE vms_users ADD mob NVARCHAR(20) DEFAULT ''`
+       ALTER TABLE vms_users ADD mob NVARCHAR(20) DEFAULT ''`,
+    // Add dept to vms_users — for department-based check-in filtering
+    `IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id=OBJECT_ID('vms_users') AND name='dept')
+       ALTER TABLE vms_users ADD dept NVARCHAR(100) DEFAULT ''`
   ];
   for (const m of migrations) {
     await p.request().query(m);

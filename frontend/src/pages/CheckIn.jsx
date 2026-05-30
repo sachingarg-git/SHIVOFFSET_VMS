@@ -19,7 +19,12 @@ export default function CheckIn() {
   const fileRef = useRef();
 
   useEffect(() => {
-    if (options.dept.length && !form.dept) setForm(f => ({ ...f, dept: options.dept[0] }));
+    // Pre-fill dept from logged-in user's assigned department; fallback to first option
+    const userDept = (JSON.parse(localStorage.getItem('vms_user') || '{}').dept || '').trim();
+    if (options.dept.length && !form.dept) {
+      const defaultDept = (userDept && options.dept.includes(userDept)) ? userDept : options.dept[0];
+      setForm(f => ({ ...f, dept: defaultDept }));
+    }
     if (options.purpose.length && !form.purpose) setForm(f => ({ ...f, purpose: options.purpose[0] }));
   }, [options]);
 
@@ -43,7 +48,9 @@ export default function CheckIn() {
 
   const resetForm = () => {
     setEditId(null);
-    setForm({ name: '', mob: '', addr: '', count: 0, dept: options.dept[0] || '', purpose: options.purpose[0] || '', remarks: '' });
+    const userDept = (JSON.parse(localStorage.getItem('vms_user') || '{}').dept || '').trim();
+    const defaultDept = (userDept && options.dept.includes(userDept)) ? userDept : (options.dept[0] || '');
+    setForm({ name: '', mob: '', addr: '', count: 0, dept: defaultDept, purpose: options.purpose[0] || '', remarks: '' });
     setSelectedHost(null);
     setPhoto(null);
     setErrors({});

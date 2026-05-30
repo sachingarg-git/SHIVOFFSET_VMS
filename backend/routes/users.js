@@ -18,7 +18,7 @@ router.get('/', adminOnly, async (req, res) => {
   try {
     const pool = await getPool();
     const r = await pool.request().query(
-      `SELECT id, username, name, role, mob, createdAt FROM vms_users ORDER BY id`
+      `SELECT id, username, name, role, mob, dept, createdAt FROM vms_users ORDER BY id`
     );
     res.json(r.recordset);
   } catch (e) {
@@ -28,36 +28,39 @@ router.get('/', adminOnly, async (req, res) => {
 });
 
 // Helper: sync a vms_user into vms_hosts (non-guard users appear as hosts)
-async function syncToHosts(pool, name, role, mob) {
+async function syncToHosts(pool, name, role, mob, dept) {
   if (!name) return;
   if (role === 'guard') {
     // Guards are not hosts — remove from vms_hosts if previously synced
     await pool.request()
       .input('n', sql.NVarChar, name.trim())
-      .query(`DELETE FROM vms_hosts WHERE LOWER(name)=LOWER(@n) AND dept='Management' AND email=''`);
+      .query(`DELETE FROM vms_hosts WHERE LOWER(name)=LOWER(@n) AND email=''`);
     return;
   }
-  const mobVal = (mob || '').trim();
+  const mobVal  = (mob  || '').trim();
+  const deptVal = (dept || 'Management').trim();
   await pool.request()
-    .input('n',   sql.NVarChar, name.trim())
-    .input('r',   sql.NVarChar, role)
-    .input('mob', sql.NVarChar, mobVal)
+    .input('n',    sql.NVarChar, name.trim())
+    .input('r',    sql.NVarChar, role)
+    .input('mob',  sql.NVarChar, mobVal)
+    .input('dept', sql.NVarChar, deptVal)
     .query(`
       IF EXISTS (SELECT 1 FROM vms_hosts WHERE LOWER(name)=LOWER(@n))
         UPDATE vms_hosts
            SET role = @r,
-               mob  = CASE WHEN @mob != '' THEN @mob ELSE mob END
+               mob  = CASE WHEN @mob  != '' THEN @mob  ELSE mob  END,
+               dept = CASE WHEN @dept != '' THEN @dept ELSE dept END
          WHERE LOWER(name)=LOWER(@n)
       ELSE
         INSERT INTO vms_hosts (name, role, dept, mob, email, status)
-        VALUES (@n, @r, 'Management', @mob, '', 'online')
+        VALUES (@n, @r, @dept, @mob, '', 'online')
     `);
 }
 
 // POST /api/users — create user
 router.post('/', adminOnly, async (req, res) => {
   try {
-    const { username, password, name, role, mob } = req.body;
+    const { username, password, name, role, mob, dept } = req.body;
     if (!username || !password || !name || !role) {
       return res.status(400).json({ error: 'All fields required' });
     }
@@ -77,15 +80,16 @@ router.post('/', adminOnly, async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.request()
-      .input('u',   sql.NVarChar, username.trim().toLowerCase())
-      .input('p',   sql.NVarChar, hash)
-      .input('n',   sql.NVarChar, name.trim())
-      .input('r',   sql.NVarChar, role)
-      .input('mob', sql.NVarChar, (mob || '').trim())
-      .query(`INSERT INTO vms_users (username,password,name,role,mob) OUTPUT inserted.id VALUES (@u,@p,@n,@r,@mob)`);
+      .input('u',    sql.NVarChar, username.trim().toLowerCase())
+      .input('p',    sql.NVarChar, hash)
+      .input('n',    sql.NVarChar, name.trim())
+      .input('r',    sql.NVarChar, role)
+      .input('mob',  sql.NVarChar, (mob  || '').trim())
+      .input('dept', sql.NVarChar, (dept || '').trim())
+      .query(`INSERT INTO vms_users (username,password,name,role,mob,dept) OUTPUT inserted.id VALUES (@u,@p,@n,@r,@mob,@dept)`);
 
     // Sync to vms_hosts so user appears in check-in host dropdown
-    await syncToHosts(pool, name.trim(), role, mob);
+    await syncToHosts(pool, name.trim(), role, mob, dept);
 
     res.json({ id: result.recordset[0].id, success: true });
   } catch (e) {
@@ -112,22 +116,25 @@ router.put('/:id', adminOnly, async (req, res) => {
       .query(`SELECT name FROM vms_users WHERE id=@id`);
     const oldName = oldRow.recordset[0]?.name || '';
 
+    const { dept } = req.body;
     if (password && password.length >= 6) {
       const hash = await bcrypt.hash(password, 10);
       await pool.request()
-        .input('id',  sql.Int,      parseInt(id))
-        .input('n',   sql.NVarChar, name)
-        .input('r',   sql.NVarChar, role)
-        .input('p',   sql.NVarChar, hash)
-        .input('mob', sql.NVarChar, (mob || '').trim())
-        .query(`UPDATE vms_users SET name=@n, role=@r, password=@p, mob=@mob WHERE id=@id`);
+        .input('id',   sql.Int,      parseInt(id))
+        .input('n',    sql.NVarChar, name)
+        .input('r',    sql.NVarChar, role)
+        .input('p',    sql.NVarChar, hash)
+        .input('mob',  sql.NVarChar, (mob  || '').trim())
+        .input('dept', sql.NVarChar, (dept || '').trim())
+        .query(`UPDATE vms_users SET name=@n, role=@r, password=@p, mob=@mob, dept=@dept WHERE id=@id`);
     } else {
       await pool.request()
-        .input('id',  sql.Int,      parseInt(id))
-        .input('n',   sql.NVarChar, name)
-        .input('r',   sql.NVarChar, role)
-        .input('mob', sql.NVarChar, (mob || '').trim())
-        .query(`UPDATE vms_users SET name=@n, role=@r, mob=@mob WHERE id=@id`);
+        .input('id',   sql.Int,      parseInt(id))
+        .input('n',    sql.NVarChar, name)
+        .input('r',    sql.NVarChar, role)
+        .input('mob',  sql.NVarChar, (mob  || '').trim())
+        .input('dept', sql.NVarChar, (dept || '').trim())
+        .query(`UPDATE vms_users SET name=@n, role=@r, mob=@mob, dept=@dept WHERE id=@id`);
     }
 
     // If name changed, update the old vms_hosts row name too
@@ -138,8 +145,8 @@ router.put('/:id', adminOnly, async (req, res) => {
         .query(`UPDATE vms_hosts SET name=@newN WHERE LOWER(name)=LOWER(@oldN)`);
     }
 
-    // Sync role + mobile to vms_hosts
-    await syncToHosts(pool, name || oldName, role, mob);
+    // Sync role + mobile + dept to vms_hosts
+    await syncToHosts(pool, name || oldName, role, mob, dept);
 
     res.json({ success: true });
   } catch (e) {
