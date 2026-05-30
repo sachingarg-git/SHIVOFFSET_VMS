@@ -156,9 +156,25 @@ router.delete('/:id', adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
     const pool = await getPool();
+
+    // Get name before deleting — needed to also remove from vms_hosts
+    const nameRow = await pool.request()
+      .input('id', sql.Int, parseInt(id))
+      .query(`SELECT name FROM vms_users WHERE id=@id`);
+    const userName = nameRow.recordset[0]?.name || '';
+
+    // Delete from users table
     await pool.request()
       .input('id', sql.Int, parseInt(id))
       .query(`DELETE FROM vms_users WHERE id=@id`);
+
+    // Also remove their host directory entry (synced from vms_users)
+    if (userName) {
+      await pool.request()
+        .input('n', sql.NVarChar, userName)
+        .query(`DELETE FROM vms_hosts WHERE LOWER(name)=LOWER(@n)`);
+    }
+
     res.json({ success: true });
   } catch (e) {
     console.error('DELETE /users/:id error:', e);
