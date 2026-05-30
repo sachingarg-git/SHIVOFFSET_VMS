@@ -64,22 +64,8 @@ export default function Login() {
             {loading ? <><span className="loading-spin" /> Signing in…</> : '→ Sign In'}
           </button>
         </form>
-        <div style={{ marginTop: 18, fontSize: 11, color: 'var(--muted)', background: 'var(--surface2)', borderRadius: 8, padding: '10px 14px' }}>
-          <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>Available Accounts</div>
-          {[
-            ['admin',        'admin123',    'Admin'],
-            ['guard',        'guard123',    'Guard'],
-            ['sachin dhiman','sachin123',   'Manager'],
-            ['manpreet',     'manpreet123', 'Manager'],
-            ['sachin',       'sachin123',   'Guard'],
-          ].map(([u, p, role]) => (
-            <div key={u} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', cursor: 'pointer' }}
-              onClick={() => setForm({ username: u, password: p })}>
-              <span><b style={{ color: 'var(--orange-2)' }}>{u}</b> / {p}</span>
-              <span style={{ color: 'var(--muted)' }}>{role}</span>
-            </div>
-          ))}
-          <div style={{ marginTop: 5, fontSize: 10, color: 'var(--muted)' }}>Click any row to auto-fill</div>
+        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+          Contact your admin if you forgot your password
         </div>
         <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--stroke)', textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}>
           SHIVOFFSET (I) PVT. LTD. • Haridwar • Build v2.0
