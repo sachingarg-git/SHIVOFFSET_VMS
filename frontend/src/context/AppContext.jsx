@@ -118,8 +118,14 @@ export function AppProvider({ children }) {
 
   const checkOut = useCallback(async (id) => {
     const outT = nowHM();
-    await api.updateVisitor(id, { st: 'out', outT });
-    setVisitors(prev => prev.map(v => v.id === id ? { ...v, st: 'out', outT } : v));
+    // Must send full visitor data — backend PUT overwrites all fields
+    // Also needed so mob/name are available for WhatsApp checkout message
+    setVisitors(prev => {
+      const vis = prev.find(v => v.id === id);
+      if (vis) api.updateVisitor(id, { ...vis, st: 'out', outT });
+      else     api.updateVisitor(id, { st: 'out', outT });
+      return prev.map(v => v.id === id ? { ...v, st: 'out', outT } : v);
+    });
   }, []);
 
   const approveVisitor = useCallback(async (id) => {

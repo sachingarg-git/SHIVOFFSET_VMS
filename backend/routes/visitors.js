@@ -292,18 +292,27 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true });
 
     // ── Auto WhatsApp: checkout thank-you to visitor ───────────────────────────
-    if (v.st === 'out' && v.outT && v.mob) {
+    if (v.st === 'out' && v.outT) {
       (async () => {
         try {
-          const [inH, inM]   = (v.inT  || '00:00').split(':').map(Number);
-          const [outH, outM] = (v.outT || '00:00').split(':').map(Number);
+          // Fetch full visitor from DB — ensures mob/name/inT are always available
+          // even if frontend only sent partial data (e.g. just st+outT)
+          const pool2 = await getPool();
+          const dbRow = await pool2.request()
+            .input('id', sql.Int, parseInt(req.params.id))
+            .query(`SELECT id, name, mob, inT, host, purpose, visitDate FROM vms_visitors WHERE id=@id`);
+          const vis = { ...dbRow.recordset[0], outT: v.outT }; // always use DB data + new outT
+          if (!vis.mob) return; // no mobile stored, skip silently
+
+          const [inH, inM]   = (vis.inT || '00:00').split(':').map(Number);
+          const [outH, outM] = (vis.outT || '00:00').split(':').map(Number);
           const durMin = (outH * 60 + outM) - (inH * 60 + inM);
           const tmpls = await getTemplates();
           const defaultOutTmpl =
             `🙏 *Thank you for visiting SHIVOFFSET!*\n\nHi {visitor_first} 👋,\nAapki visit successfully complete hui.\n\n🕐 Check-in:  {time}\n🕑 Check-out: {out_time}\n⏱  Duration:  {duration}\n\n_Phir milenge! SHIVOFFSET (I) PVT. LTD. 😊_`;
-          const msg = fillMsg(tmpls.outTmpl || defaultOutTmpl, v, { durMin });
-          await trySendWA(v.mob, msg, 'checkout thank-you');
-        } catch {}
+          const msg = fillMsg(tmpls.outTmpl || defaultOutTmpl, vis, { durMin });
+          await trySendWA(vis.mob, msg, 'checkout thank-you');
+        } catch (e) { console.log(`⚠️  [WA] checkout skipped: ${e.message}`); }
       })();
     }
   } catch (e) {
