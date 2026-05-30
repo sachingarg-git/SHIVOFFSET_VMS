@@ -59,4 +59,11 @@ export const api = {
   addUser: (data) => req('POST', '/users', data),
   updateUser: (id, data) => req('PUT', `/users/${id}`, data),
   deleteUser: (id) => req('DELETE', `/users/${id}`),
+  // WhatsApp
+  waStatus:     ()         => req('GET',  '/whatsapp/status'),
+  waConnect:    ()         => req('POST', '/whatsapp/connect', {}),
+  waDisconnect: ()         => req('POST', '/whatsapp/disconnect', {}),
+  waTest:       (phone)    => req('POST', '/whatsapp/test', { phone }),
+  waGetSettings:()         => req('GET',  '/whatsapp/settings'),
+  waSaveSettings:(data)    => req('PUT',  '/whatsapp/settings', data),
 };

@@ -1,8 +1,20 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { sendWhatsApp }   = require('./whatsapp');
 
 router.use(authMiddleware);
+
+// ─── Safe WhatsApp send — never crash the main flow ───────────────────────────
+async function trySendWA(phone, msg, label) {
+  if (!phone) return;
+  try {
+    await sendWhatsApp(phone, msg);
+    console.log(`✅ [WA] ${label} → ${phone}`);
+  } catch (e) {
+    console.log(`⚠️  [WA] ${label} skipped: ${e.message}`);
+  }
+}
 
 // Helper — map a DB row to API shape
 function mapRow(r) {
@@ -112,7 +124,39 @@ router.post('/', async (req, res) => {
               OUTPUT INSERTED.id
               VALUES (@name,@mob,@addr,@co,@desig,@idType,@idNum,@vehicle,@count,@dept,@purpose,@host,@remarks,@photo,@inT,@outT,@status,@visitDate,@createdAt,@checkedBy)`);
 
-    res.json({ id: result.recordset[0].id, ...v, st: 'pending', createdAt: now, checkedInBy: req.user.username });
+    const newId = result.recordset[0].id;
+    res.json({ id: newId, ...v, st: 'pending', createdAt: now, checkedInBy: req.user.username });
+
+    // ── Auto WhatsApp: visitor welcome + host alert (fire-and-forget) ─────────
+    const hostName = v.host || '';
+    const visitorMsg =
+      `🙏 Welcome to SHIVOFFSET (I) PVT. LTD.!\n\n` +
+      `Hi ${(v.name || '').split(' ')[0]} 👋,\n` +
+      `Aap check-in ho chuke hain on ${v.date || ''} at ${v.inT || ''}.\n` +
+      `Aapke host *${hostName}* ko notify kar diya gaya hai.\n` +
+      `Aapka visitor ID: VMS-${newId}\n\n` +
+      `Dhanyavaad! 🙏`;
+    // Fetch host mobile from vms_hosts
+    (async () => {
+      try {
+        const pool2 = await getPool();
+        const hRow = await pool2.request()
+          .input('hn', sql.NVarChar, hostName)
+          .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@hn)`);
+        const hostMob = hRow.recordset[0]?.mob || '';
+        const hostMsg =
+          `🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\n` +
+          `Hi ${hostName.split(' ')[0]},\n` +
+          `*${v.name}* aapse milne aaye hain.\n\n` +
+          `📞 Mobile: ${v.mob}\n` +
+          `🎯 Purpose: ${v.purpose || '—'}\n` +
+          `🏢 Company: ${v.co && v.co !== '—' ? v.co : '—'}\n` +
+          `🕐 Check-in: ${v.inT || ''}\n\n` +
+          `_Visitor reception par wait kar rahe hain. Please approve karein._`;
+        await trySendWA(v.mob,   visitorMsg, 'visitor welcome');
+        await trySendWA(hostMob, hostMsg,    'host alert');
+      } catch {}
+    })();
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' });
   }
@@ -153,6 +197,29 @@ router.put('/:id/approve', async (req, res) => {
     }
 
     res.json({ success: true, approvedBy: req.user.name || req.user.username });
+
+    // ── Auto WhatsApp: approved message to visitor ────────────────────────────
+    (async () => {
+      try {
+        const pool2 = await getPool();
+        const full = await pool2.request()
+          .input('id', sql.Int, parseInt(req.params.id))
+          .query(`SELECT name, mob, host, purpose, inT FROM vms_visitors WHERE id=@id`);
+        const vis = full.recordset[0];
+        if (!vis) return;
+        const approvedBy = req.user.name || req.user.username;
+        const msg =
+          `✅ *Aapki entry approve ho gayi!*\n\n` +
+          `Hi ${(vis.name || '').split(' ')[0]} 👋,\n` +
+          `*${approvedBy}* ne aapki visit approve kar di hai.\n` +
+          `Aap ab andar ja sakte hain.\n\n` +
+          `🎯 Purpose: ${vis.purpose || '—'}\n` +
+          `🕐 Check-in: ${vis.inT || ''}\n` +
+          `🏢 Host: ${vis.host}\n\n` +
+          `_SHIVOFFSET (I) PVT. LTD. mein aapka swagat hai! 🙏_`;
+        await trySendWA(vis.mob, msg, 'approval notify to visitor');
+      } catch {}
+    })();
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' });
   }
@@ -190,6 +257,30 @@ router.put('/:id', async (req, res) => {
         photo=@photo,inT=@inT,outT=@outT,status=@status,visitDate=@visitDate
         WHERE id=@id`);
     res.json({ success: true });
+
+    // ── Auto WhatsApp: checkout thank-you to visitor ───────────────────────────
+    if (v.st === 'out' && v.outT && v.mob) {
+      (async () => {
+        try {
+          // Calculate duration
+          const [inH, inM]   = (v.inT  || '00:00').split(':').map(Number);
+          const [outH, outM] = (v.outT || '00:00').split(':').map(Number);
+          const durMin = (outH * 60 + outM) - (inH * 60 + inM);
+          const durStr = durMin > 0
+            ? (durMin >= 60 ? `${Math.floor(durMin/60)}h ${durMin%60}m` : `${durMin}m`)
+            : '';
+          const msg =
+            `🙏 *Thank you for visiting SHIVOFFSET!*\n\n` +
+            `Hi ${(v.name || '').split(' ')[0]} 👋,\n` +
+            `Aapki visit successfully complete hui.\n\n` +
+            `🕐 Check-in:  ${v.inT || ''}\n` +
+            `🕑 Check-out: ${v.outT}\n` +
+            `⏱  Duration:  ${durStr || '—'}\n\n` +
+            `_Phir milenge! SHIVOFFSET (I) PVT. LTD. 😊_`;
+          await trySendWA(v.mob, msg, 'checkout thank-you');
+        } catch {}
+      })();
+    }
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' });
   }

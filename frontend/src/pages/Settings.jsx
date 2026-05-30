@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import LocationModal from '../components/modals/LocationModal';
 import OptionsModal from '../components/modals/OptionsModal';
 import { initials } from '../utils/helpers';
+import { api } from '../api';
 
 // All configurable nav pages — order matches the sidebar
 const NAV_PAGES = [
@@ -122,6 +123,93 @@ export default function Settings() {
   const [editLoc, setEditLoc] = useState(null);
   const [optModal, setOptModal] = useState(null); // 'purpose' | 'dept' | null
 
+  // ── WhatsApp state ──────────────────────────────────────────────────────────
+  const [waTab,       setWaTab]       = useState('qr'); // 'qr' | 'api'
+  const [qrStatus,    setQrStatus]    = useState('disconnected');
+  const [qrImage,     setQrImage]     = useState(null);
+  const [qrInfo,      setQrInfo]      = useState(null);
+  const [qrLoading,   setQrLoading]   = useState(false);
+  const [waApiForm,   setWaApiForm]   = useState({ wa_token: '', wa_phone_id: '' });
+  const [testPhone,   setTestPhone]   = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+  const qrPollRef = useRef(null);
+
+  // Poll QR status every 2s when qr_ready/connecting, else 5s
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/whatsapp/status', {
+          headers: { Authorization: 'Bearer ' + (localStorage.getItem('vms_token') || '') }
+        });
+        const d = await r.json();
+        setQrStatus(d.status);
+        if (d.qr)   setQrImage(d.qr);
+        if (d.info) setQrInfo(d.info);
+        if (d.status === 'connected') { setQrImage(null); }
+      } catch {}
+    };
+    poll();
+    const delay = (qrStatus === 'qr_ready' || qrStatus === 'connecting') ? 2000 : 5000;
+    qrPollRef.current = setInterval(poll, delay);
+    return () => clearInterval(qrPollRef.current);
+  }, [qrStatus]);
+
+  const startQrConnect = async () => {
+    setQrLoading(true);
+    try {
+      await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('vms_token') || '') }
+      });
+      setQrStatus('connecting');
+    } catch { showToast('Connection failed', true); }
+    setQrLoading(false);
+  };
+
+  const disconnectQr = async () => {
+    if (!window.confirm('Disconnect WhatsApp? Session will be cleared.')) return;
+    try {
+      await fetch('/api/whatsapp/disconnect', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('vms_token') || '') }
+      });
+      setQrStatus('disconnected'); setQrImage(null); setQrInfo(null);
+      showToast('✓ WhatsApp disconnected');
+    } catch { showToast('Disconnect failed', true); }
+  };
+
+  const sendTestMsg = async () => {
+    if (!testPhone) { showToast('Phone number required', true); return; }
+    setTestLoading(true);
+    try {
+      const r = await fetch('/api/whatsapp/test', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('vms_token') || ''), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: testPhone }),
+      });
+      const d = await r.json();
+      if (d.ok) showToast(`✅ Test sent via ${d.mode === 'qr' ? 'QR session' : 'Meta API'}`);
+      else showToast(d.error || 'Send failed', true);
+    } catch { showToast('Test failed', true); }
+    setTestLoading(false);
+  };
+
+  const saveApiSettings = async () => {
+    try {
+      const r = await fetch('/api/whatsapp/settings', {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('vms_token') || ''), 'Content-Type': 'application/json' },
+        body: JSON.stringify(waApiForm),
+      });
+      const d = await r.json();
+      if (d.ok) showToast('✓ API settings saved');
+      else showToast(d.error || 'Save failed', true);
+    } catch { showToast('Save failed', true); }
+  };
+
+  const STATUS_COLOR = { disconnected: '#94a3b8', connecting: '#f59e0b', qr_ready: '#3b82f6', connected: '#22c55e' };
+  const STATUS_LABEL = { disconnected: 'Not Connected', connecting: 'Connecting...', qr_ready: 'Scan QR Code', connected: 'Connected ✅' };
+
   useEffect(() => {
     if (settings) setForm({
       provider: settings.provider || 'Twilio WhatsApp Business',
@@ -140,25 +228,110 @@ export default function Settings() {
   return (
     <>
       <div className="split-2-equal">
+        {/* ── WhatsApp Section ── */}
         <div className="card">
-          <div className="card-hd"><div><h3>WhatsApp API Settings</h3><p>Configure notification templates</p></div></div>
-          <form onSubmit={e => { e.preventDefault(); saveSettings(form); }} className="form-grid">
-            <div className="field field-full">
-              <label>API Provider</label>
-              <select value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))}>
-                {['Twilio WhatsApp Business', 'Meta Cloud API', 'Gupshup', 'Interakt'].map(p => <option key={p}>{p}</option>)}
-              </select>
+          <div className="card-hd"><div><h3>💬 WhatsApp Notifications</h3><p>Auto-send messages on check-in, approval &amp; checkout</p></div></div>
+
+          {/* Mode Tabs */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--stroke)' }}>
+            {[['qr','📱 QR Scan (Personal WhatsApp)'],['api','☁ Meta Cloud API']].map(([k, lbl]) => (
+              <button key={k} onClick={() => setWaTab(k)}
+                style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  background: waTab === k ? 'var(--orange)' : 'var(--surface2)',
+                  color: waTab === k ? '#fff' : 'var(--muted)' }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+
+          {/* ── QR TAB ── */}
+          {waTab === 'qr' && (
+            <div>
+              {/* Status bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--stroke)', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLOR[qrStatus], display: 'inline-block', boxShadow: qrStatus === 'connected' ? '0 0 6px #22c55e88' : 'none' }} />
+                  <b style={{ fontSize: 13 }}>{STATUS_LABEL[qrStatus]}</b>
+                  {qrInfo && <span style={{ fontSize: 11, color: 'var(--muted)' }}>({qrInfo.name} · +{qrInfo.phone})</span>}
+                </div>
+                {qrStatus === 'connected'
+                  ? <button onClick={disconnectQr} style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #f87171', background: 'rgba(248,113,113,0.1)', color: '#f87171', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Disconnect</button>
+                  : <button onClick={startQrConnect} disabled={qrLoading || qrStatus === 'connecting' || qrStatus === 'qr_ready'}
+                      style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', opacity: (qrLoading || qrStatus !== 'disconnected') ? 0.7 : 1 }}>
+                      {qrLoading ? '⏳ Starting...' : qrStatus === 'qr_ready' ? '🔄 Refresh QR' : '📱 Connect WhatsApp'}
+                    </button>
+                }
+              </div>
+
+              {/* QR Code */}
+              {qrStatus === 'qr_ready' && qrImage && (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <img src={qrImage} alt="WhatsApp QR" style={{ width: 220, height: 220, borderRadius: 12, border: '3px solid #25D36633', padding: 8, background: '#fff' }} />
+                  <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
+                    1. Open WhatsApp on your phone<br />
+                    2. Tap <b>⋮ Menu → Linked Devices</b><br />
+                    3. Tap <b>Link a Device</b> → Scan this QR code
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 10, color: '#25D366', fontWeight: 700 }}>QR refreshes automatically every ~20s — scan quickly!</div>
+                </div>
+              )}
+
+              {/* Connected info */}
+              {qrStatus === 'connected' && (
+                <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 700, color: '#22c55e', marginBottom: 4 }}>✅ WhatsApp Connected!</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Messages will auto-send on check-in, approval &amp; checkout</div>
+                </div>
+              )}
+
+              {/* Disconnected info */}
+              {qrStatus === 'disconnected' && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--stroke)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 14 }}>
+                  <b style={{ color: '#25D366' }}>💡 QR Scan kaise kaam karta hai:</b><br />
+                  • Kisi Meta developer account ki zaroorat nahi<br />
+                  • Messages aapke connected phone number se jayenge<br />
+                  • Session disk par save hoti hai — server restart par auto-reconnect<br />
+                  • Jab tak logout ya disconnect na karein, connected rahega
+                </div>
+              )}
+
+              {/* Test message */}
+              {(qrStatus === 'connected') && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <input value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Test phone (10 digits)" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' }} />
+                  <button onClick={sendTestMsg} disabled={testLoading} className="btn btn-success btn-sm">{testLoading ? '⏳' : '📲 Test'}</button>
+                </div>
+              )}
             </div>
-            <div className="field field-full"><label>Sender Number</label><input value={form.sender} onChange={e => setForm(f => ({ ...f, sender: e.target.value }))} /></div>
-            <div className="field field-full"><label>API Key / Token</label><input type="password" value={form.token} onChange={e => setForm(f => ({ ...f, token: e.target.value }))} placeholder="xxxxxxxx-xxxx-xxxx" /></div>
-            <div className="field field-full"><label>Visitor Welcome Template</label><textarea rows={3} value={form.visitorTmpl} onChange={e => setForm(f => ({ ...f, visitorTmpl: e.target.value }))} /></div>
-            <div className="field field-full"><label>Host Alert Template</label><textarea rows={3} value={form.hostTmpl} onChange={e => setForm(f => ({ ...f, hostTmpl: e.target.value }))} /></div>
-            <div className="field field-full"><label>Check-out Thank-you Template</label><textarea rows={2} value={form.outTmpl} onChange={e => setForm(f => ({ ...f, outTmpl: e.target.value }))} /></div>
-            <div className="field-full" style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button type="button" className="btn btn-ghost" onClick={() => setForm({ provider: settings.provider || '', sender: settings.sender || '', token: settings.token || '', visitorTmpl: settings.visitorTmpl || '', hostTmpl: settings.hostTmpl || '', outTmpl: settings.outTmpl || '' })}>Discard</button>
-              <button type="submit" className="btn btn-primary">✓ Save Settings</button>
+          )}
+
+          {/* ── API TAB ── */}
+          {waTab === 'api' && (
+            <div>
+              <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: 'var(--muted)' }}>
+                <b style={{ color: '#3b82f6' }}>☁ Meta Cloud API</b> — Official WhatsApp Business API.<br />
+                Requires Meta developer account + approved phone number.<br />
+                <a href="https://developers.facebook.com/docs/whatsapp" target="_blank" rel="noreferrer" style={{ color: '#3b82f6' }}>→ Setup guide</a>
+              </div>
+              <div className="form-grid">
+                <div className="field field-full">
+                  <label>Phone Number ID</label>
+                  <input value={waApiForm.wa_phone_id} onChange={e => setWaApiForm(f => ({ ...f, wa_phone_id: e.target.value }))} placeholder="From Meta Developer Console" />
+                </div>
+                <div className="field field-full">
+                  <label>Permanent Access Token</label>
+                  <input type="password" value={waApiForm.wa_token} onChange={e => setWaApiForm(f => ({ ...f, wa_token: e.target.value }))} placeholder="EAAxxxxxxxxxx..." />
+                </div>
+                <div className="field-full" style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <input value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Test phone (10 digits)" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--stroke)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' }} />
+                  <button onClick={sendTestMsg} disabled={testLoading} className="btn btn-success btn-sm">{testLoading ? '⏳' : '📲 Test'}</button>
+                </div>
+                <div className="field-full" style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button onClick={saveApiSettings} className="btn btn-primary">✓ Save API Settings</button>
+                </div>
+              </div>
             </div>
-          </form>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
