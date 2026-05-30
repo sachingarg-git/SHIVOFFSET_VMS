@@ -136,20 +136,21 @@ router.post('/', async (req, res) => {
       `Aapke host *${hostName}* ko notify kar diya gaya hai.\n` +
       `Aapka visitor ID: VMS-${newId}\n\n` +
       `Dhanyavaad! 🙏`;
-    // Fetch host mobile — check vms_hosts first, then vms_users as fallback
+    // Fetch host mobile — vms_users first (real number set by admin), then vms_hosts as fallback
     (async () => {
       try {
         const pool2 = await getPool();
-        const hRow = await pool2.request()
+        // 1st: vms_users — real mobile set via User Management page
+        const uRow = await pool2.request()
           .input('hn', sql.NVarChar, hostName)
-          .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@hn)`);
-        let hostMob = hRow.recordset[0]?.mob || '';
-        // Fallback: look up manager/user by display name in vms_users
+          .query(`SELECT mob FROM vms_users WHERE LOWER(name)=LOWER(@hn)`);
+        let hostMob = uRow.recordset[0]?.mob || '';
+        // Fallback: vms_hosts (for external hosts who are not system users)
         if (!hostMob) {
-          const uRow = await pool2.request()
+          const hRow = await pool2.request()
             .input('hn', sql.NVarChar, hostName)
-            .query(`SELECT mob FROM vms_users WHERE LOWER(name)=LOWER(@hn)`);
-          hostMob = uRow.recordset[0]?.mob || '';
+            .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@hn)`);
+          hostMob = hRow.recordset[0]?.mob || '';
         }
         const hostMsg =
           `🔔 *Visitor Arrival Alert — SHIVOFFSET VMS*\n\n` +

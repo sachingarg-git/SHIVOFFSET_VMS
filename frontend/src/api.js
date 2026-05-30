@@ -66,4 +66,6 @@ export const api = {
   waTest:       (phone)    => req('POST', '/whatsapp/test', { phone }),
   waGetSettings:()         => req('GET',  '/whatsapp/settings'),
   waSaveSettings:(data)    => req('PUT',  '/whatsapp/settings', data),
+  waSend:       (phone, message) => req('POST', '/whatsapp/send', { phone, message }),
+  waHostPhone:  (name)     => req('GET',  `/whatsapp/host-phone?name=${encodeURIComponent(name)}`),
 };

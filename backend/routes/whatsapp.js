@@ -113,6 +113,39 @@ router.post('/test', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/whatsapp/send  { phone, message } — direct send from WAModal buttons
+router.post('/send', async (req, res) => {
+  const { phone, message } = req.body;
+  if (!phone)   return res.status(400).json({ error: 'Phone required' });
+  if (!message) return res.status(400).json({ error: 'Message required' });
+  try {
+    const result = await sendWhatsApp(phone, message);
+    res.json({ ok: true, mode: result.mode });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/whatsapp/host-phone?name=Manpreet+Bedi
+// Looks up host mobile — vms_users first (admin-set real number), then vms_hosts as fallback
+router.get('/host-phone', async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  try {
+    const pool = await getPool();
+    // 1st: vms_users — admins set real mobile numbers here (User Management page)
+    const u = await pool.request()
+      .input('n', sql.NVarChar, name)
+      .query(`SELECT mob FROM vms_users WHERE LOWER(name)=LOWER(@n)`);
+    if (u.recordset[0]?.mob) return res.json({ mob: u.recordset[0].mob, source: 'users' });
+    // 2nd: vms_hosts — fallback for external hosts who are not system users
+    const h = await pool.request()
+      .input('n', sql.NVarChar, name)
+      .query(`SELECT mob FROM vms_hosts WHERE LOWER(name)=LOWER(@n)`);
+    if (h.recordset[0]?.mob) return res.json({ mob: h.recordset[0].mob, source: 'hosts' });
+    // Not found
+    res.json({ mob: '', source: null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET  /api/whatsapp/settings  — wa_token, wa_phone_id (masked)
 router.get('/settings', async (req, res) => {
   try {

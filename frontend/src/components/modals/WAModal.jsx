@@ -1,32 +1,122 @@
 import { useApp } from '../../context/AppContext';
-import { cleanPhone, fillTemplate } from '../../utils/helpers';
+import { fillTemplate } from '../../utils/helpers';
 import BadgeModal from './BadgeModal';
 import { useState } from 'react';
+import { api } from '../../api';
 
-export default function WAModal({ visitor, hosts, onClose }) {
+export default function WAModal({ visitor, onClose }) {
   const { settings, showToast, approveVisitor, deleteVisitor } = useApp();
-  const [badgeOpen, setBadgeOpen] = useState(false);
+  const [badgeOpen, setBadgeOpen]   = useState(false);
+  const [sending, setSending]       = useState(''); // 'host' | 'visitor' | 'both' | ''
   const user = JSON.parse(localStorage.getItem('vms_user') || '{}');
   const canApprove = ['admin', 'manager'].includes(user.role);
 
-  const openWA = (phone, msg) => {
-    if (settings.token && settings.token.trim().length > 5) {
-      showToast('📲 Sending via API…');
+  // ── Direct API send — never opens WhatsApp Web ──────────────────────────────
+  async function sendDirect(phone, msg, label) {
+    const result = await api.waSend(phone, msg);
+    if (!result || result.error) {
+      throw new Error(result?.error || 'Send failed');
     }
-    window.open(`https://wa.me/${cleanPhone(phone)}?text=${encodeURIComponent(msg)}`, '_blank');
-  };
+    const modeLabel = result.mode === 'qr' ? 'QR session' : 'Meta API';
+    console.log(`✅ [WAModal] Sent to ${label} via ${modeLabel}`);
+    return modeLabel;
+  }
 
-  const sendHost = () => {
-    const host = hosts.find(h => h.name === visitor.host);
-    if (!host?.mob) { showToast('⚠ Host mobile number not found', true); return; }
-    openWA(host.mob, fillTemplate(settings.hostTmpl || '🔔 Visitor Alert — Hi {host_name}, {visitor_name} aapse milne aaye hain. Purpose: {purpose}. Mobile: {visitor_mobile}. Check-in: {time}.', visitor));
-    showToast('📲 Sending to host…');
-  };
+  // ── Send to host ─────────────────────────────────────────────────────────────
+  // First resolves mobile via /api/whatsapp/host-phone (vms_hosts → vms_users fallback)
+  async function sendHost() {
+    if (sending) return;
+    setSending('host');
+    try {
+      // Resolve host mobile — backend checks vms_hosts first, then vms_users
+      const hostData = await api.waHostPhone(visitor.host);
+      if (!hostData?.mob) {
+        showToast(`⚠ Host "${visitor.host}" ka mobile number nahi mila — Users page mein add karein`, true);
+        setSending('');
+        return;
+      }
 
-  const sendVisitor = () => {
-    openWA(visitor.mob, fillTemplate(settings.visitorTmpl || '🙏 Welcome to SHIVOFFSET! Hi {visitor_name}, aap check-in ho chuke hain on {date} {time}. Host {host_name} ko notify kar diya gaya hai.', visitor));
-    showToast('📲 Sending to visitor…');
-  };
+      const msg = fillTemplate(
+        settings.hostTmpl ||
+        '🔔 Visitor Alert — Hi {host_name}, {visitor_name} aapse milne aaye hain. Purpose: {purpose}. Mobile: {visitor_mobile}. Check-in: {time}.',
+        visitor
+      );
+
+      const via = await sendDirect(hostData.mob, msg, 'host');
+      showToast(`✅ Host ko message bheja gaya (${via})`);
+    } catch (e) {
+      showToast(`❌ Host send failed: ${e.message}`, true);
+    }
+    setSending('');
+  }
+
+  // ── Send to visitor ──────────────────────────────────────────────────────────
+  async function sendVisitor() {
+    if (sending) return;
+    setSending('visitor');
+    try {
+      if (!visitor.mob) {
+        showToast('⚠ Visitor ka mobile number nahi mila', true);
+        setSending('');
+        return;
+      }
+      const msg = fillTemplate(
+        settings.visitorTmpl ||
+        '🙏 Welcome to SHIVOFFSET! Hi {visitor_name}, aap check-in ho chuke hain on {date} {time}. Host {host_name} ko notify kar diya gaya hai.',
+        visitor
+      );
+      const via = await sendDirect(visitor.mob, msg, 'visitor');
+      showToast(`✅ Visitor ko message bheja gaya (${via})`);
+    } catch (e) {
+      showToast(`❌ Visitor send failed: ${e.message}`, true);
+    }
+    setSending('');
+  }
+
+  // ── Send both ────────────────────────────────────────────────────────────────
+  async function sendBoth() {
+    if (sending) return;
+    setSending('both');
+    let results = [];
+
+    // Visitor first
+    try {
+      if (visitor.mob) {
+        const msg = fillTemplate(
+          settings.visitorTmpl ||
+          '🙏 Welcome to SHIVOFFSET! Hi {visitor_name}, aap check-in ho chuke hain on {date} {time}. Host {host_name} ko notify kar diya gaya hai.',
+          visitor
+        );
+        const via = await sendDirect(visitor.mob, msg, 'visitor');
+        results.push(`Visitor ✓ (${via})`);
+      } else {
+        results.push('Visitor ✗ (no mobile)');
+      }
+    } catch (e) {
+      results.push(`Visitor ✗ (${e.message})`);
+    }
+
+    // Host second
+    try {
+      const hostData = await api.waHostPhone(visitor.host);
+      if (hostData?.mob) {
+        const msg = fillTemplate(
+          settings.hostTmpl ||
+          '🔔 Visitor Alert — Hi {host_name}, {visitor_name} aapse milne aaye hain. Purpose: {purpose}. Mobile: {visitor_mobile}. Check-in: {time}.',
+          visitor
+        );
+        const via = await sendDirect(hostData.mob, msg, 'host');
+        results.push(`Host ✓ (${via})`);
+      } else {
+        results.push('Host ✗ (no mobile)');
+      }
+    } catch (e) {
+      results.push(`Host ✗ (${e.message})`);
+    }
+
+    showToast(`📲 ${results.join(' • ')}`);
+    setSending('');
+  }
 
   const handleApprove = () => {
     approveVisitor(visitor.id);
@@ -40,6 +130,8 @@ export default function WAModal({ visitor, hosts, onClose }) {
     onClose();
   };
 
+  const isSending = (key) => sending === key || sending === 'both';
+
   return (
     <>
       <div className="modal-wrap show" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -47,6 +139,8 @@ export default function WAModal({ visitor, hosts, onClose }) {
           <h3>📱 WhatsApp Notifications</h3>
           <p>The following messages have been triggered</p>
           <div className="wa-chat-window">
+
+            {/* Host message preview */}
             <div className="wa-msg">
               <div className="wa-hd">📨 To Host: <span>{visitor.host}</span></div>
               <b>🔔 Visitor Arrival Alert</b><br /><br />
@@ -61,11 +155,20 @@ export default function WAModal({ visitor, hosts, onClose }) {
                 </div>
               )}
               <div className="wa-actions">
-                <button className="wa-btn" onClick={sendHost}>📲 Send to Host</button>
+                <button
+                  className="wa-btn"
+                  onClick={sendHost}
+                  disabled={!!sending}
+                  style={sending === 'host' ? { opacity: 0.7 } : {}}
+                >
+                  {sending === 'host' ? '⏳ Sending…' : '📲 Send to Host'}
+                </button>
                 {canApprove && <button className="wa-btn green" onClick={handleApprove}>✓ Approve</button>}
-                {canApprove && <button className="wa-btn red" onClick={handleReject}>✗ Reject</button>}
+                {canApprove && <button className="wa-btn red"   onClick={handleReject}>✗ Reject</button>}
               </div>
             </div>
+
+            {/* Visitor message preview */}
             <div className="wa-msg user">
               <div className="wa-hd">📨 To Visitor: <span>{visitor.name}</span></div>
               🙏 <b>Welcome to SHIVOFFSET (I) PVT. LTD.</b><br /><br />
@@ -73,14 +176,29 @@ export default function WAModal({ visitor, hosts, onClose }) {
               Aap check-in ho chuke hain on <b>{visitor.date} {visitor.inT}</b>.<br />
               Aapke host <b>{visitor.host}</b> ko notify kar diya gaya hai.
               <div className="wa-actions">
-                <button className="wa-btn" onClick={sendVisitor}>📲 Send to Visitor</button>
+                <button
+                  className="wa-btn"
+                  onClick={sendVisitor}
+                  disabled={!!sending}
+                  style={sending === 'visitor' ? { opacity: 0.7 } : {}}
+                >
+                  {sending === 'visitor' ? '⏳ Sending…' : '📲 Send to Visitor'}
+                </button>
                 <button className="wa-btn" onClick={() => setBadgeOpen(true)}>🎫 View e-Badge</button>
               </div>
             </div>
+
           </div>
+
           <div className="modal-actions">
             <button className="btn btn-ghost" onClick={onClose}>Close</button>
-            <button className="btn btn-success" onClick={() => { sendVisitor(); setTimeout(sendHost, 700); }}>📲 Send Both</button>
+            <button
+              className="btn btn-success"
+              onClick={sendBoth}
+              disabled={!!sending}
+            >
+              {sending === 'both' ? <><span className="loading-spin" /> Sending…</> : '📲 Send Both'}
+            </button>
             <button className="btn btn-primary" onClick={() => setBadgeOpen(true)}>View e-Badge</button>
           </div>
         </div>
