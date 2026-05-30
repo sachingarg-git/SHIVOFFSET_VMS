@@ -27,6 +27,33 @@ router.get('/', adminOnly, async (req, res) => {
   }
 });
 
+// Helper: sync a vms_user into vms_hosts (non-guard users appear as hosts)
+async function syncToHosts(pool, name, role, mob) {
+  if (!name) return;
+  if (role === 'guard') {
+    // Guards are not hosts — remove from vms_hosts if previously synced
+    await pool.request()
+      .input('n', sql.NVarChar, name.trim())
+      .query(`DELETE FROM vms_hosts WHERE LOWER(name)=LOWER(@n) AND dept='Management' AND email=''`);
+    return;
+  }
+  const mobVal = (mob || '').trim();
+  await pool.request()
+    .input('n',   sql.NVarChar, name.trim())
+    .input('r',   sql.NVarChar, role)
+    .input('mob', sql.NVarChar, mobVal)
+    .query(`
+      IF EXISTS (SELECT 1 FROM vms_hosts WHERE LOWER(name)=LOWER(@n))
+        UPDATE vms_hosts
+           SET role = @r,
+               mob  = CASE WHEN @mob != '' THEN @mob ELSE mob END
+         WHERE LOWER(name)=LOWER(@n)
+      ELSE
+        INSERT INTO vms_hosts (name, role, dept, mob, email, status)
+        VALUES (@n, @r, 'Management', @mob, '', 'online')
+    `);
+}
+
 // POST /api/users — create user
 router.post('/', adminOnly, async (req, res) => {
   try {
@@ -57,6 +84,9 @@ router.post('/', adminOnly, async (req, res) => {
       .input('mob', sql.NVarChar, (mob || '').trim())
       .query(`INSERT INTO vms_users (username,password,name,role,mob) OUTPUT inserted.id VALUES (@u,@p,@n,@r,@mob)`);
 
+    // Sync to vms_hosts so user appears in check-in host dropdown
+    await syncToHosts(pool, name.trim(), role, mob);
+
     res.json({ id: result.recordset[0].id, success: true });
   } catch (e) {
     console.error('POST /users error:', e);
@@ -76,6 +106,12 @@ router.put('/:id', adminOnly, async (req, res) => {
 
     const pool = await getPool();
 
+    // Get old name before update (in case name changed — need to update vms_hosts by old name)
+    const oldRow = await pool.request()
+      .input('id', sql.Int, parseInt(id))
+      .query(`SELECT name FROM vms_users WHERE id=@id`);
+    const oldName = oldRow.recordset[0]?.name || '';
+
     if (password && password.length >= 6) {
       const hash = await bcrypt.hash(password, 10);
       await pool.request()
@@ -93,6 +129,17 @@ router.put('/:id', adminOnly, async (req, res) => {
         .input('mob', sql.NVarChar, (mob || '').trim())
         .query(`UPDATE vms_users SET name=@n, role=@r, mob=@mob WHERE id=@id`);
     }
+
+    // If name changed, update the old vms_hosts row name too
+    if (oldName && oldName.toLowerCase() !== (name || '').toLowerCase()) {
+      await pool.request()
+        .input('oldN', sql.NVarChar, oldName)
+        .input('newN', sql.NVarChar, name || '')
+        .query(`UPDATE vms_hosts SET name=@newN WHERE LOWER(name)=LOWER(@oldN)`);
+    }
+
+    // Sync role + mobile to vms_hosts
+    await syncToHosts(pool, name || oldName, role, mob);
 
     res.json({ success: true });
   } catch (e) {

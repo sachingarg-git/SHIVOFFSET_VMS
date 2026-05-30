@@ -153,6 +153,25 @@ async function initDB() {
   }
   console.log('✅ DB migrations applied');
 
+  // ── Clean dummy seed data + sync real users into vms_hosts ────────────────
+  // Delete seeded demo hosts (those with dummy phone pattern +91 98180 0000X)
+  await p.request().query(`DELETE FROM vms_hosts WHERE mob LIKE '+91 98180 0000%'`);
+  // Upsert non-guard vms_users into vms_hosts so real users appear in check-in host dropdown
+  await p.request().query(`
+    MERGE vms_hosts AS target
+    USING (
+      SELECT name, role, mob FROM vms_users WHERE role != 'guard' AND name IS NOT NULL AND name != ''
+    ) AS source ON LOWER(target.name) = LOWER(source.name)
+    WHEN NOT MATCHED THEN
+      INSERT (name, role, dept, mob, email, status)
+      VALUES (source.name, source.role, 'Management', source.mob, '', 'online')
+    WHEN MATCHED THEN
+      UPDATE SET
+        target.mob  = CASE WHEN source.mob IS NOT NULL AND source.mob != '' THEN source.mob ELSE target.mob END,
+        target.role = source.role;
+  `);
+  console.log('✅ vms_hosts synced from vms_users (dummy data removed)');
+
   // Seed default admin user
   const bcrypt = require('bcryptjs');
   const existing = await p.request().query(`SELECT id FROM vms_users WHERE username='admin'`);
