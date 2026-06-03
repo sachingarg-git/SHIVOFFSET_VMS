@@ -1,7 +1,13 @@
 import { useRef, useEffect, useState } from 'react';
 import { initials, badgeId, formatDateNice } from '../../utils/helpers';
+import { useApp } from '../../context/AppContext';
 
 export default function BadgeModal({ visitor, onClose }) {
+  const { locations } = useApp();
+  // Use first active location from Settings → Office Locations; fallback to empty
+  const primaryLoc = locations.find(l => l.status !== 'offline') || locations[0];
+  const locName  = primaryLoc?.name  || '—';
+  const locCity  = primaryLoc?.name  ? primaryLoc.name.split(/[,·•\-]/)[0].trim() : 'SHIVOFFSET';
   const qrFrontRef = useRef();
   const qrBackRef = useRef();
   const [flipped, setFlipped] = useState(false);
@@ -134,7 +140,7 @@ export default function BadgeModal({ visitor, onClose }) {
                       <div><label>IN</label><span>{visitor.inT}</span></div>
                       <div><label>DATE</label><span>{dateNice}</span></div>
                       <div><label>VALID</label><span>Till 23:59</span></div>
-                      <div><label>LOC</label><span>Haridwar HQ</span></div>
+                      <div><label>LOC</label><span>{locName}</span></div>
                     </div>
                   </div>
                 </div>
@@ -156,7 +162,7 @@ export default function BadgeModal({ visitor, onClose }) {
                   <div><div className="sig-line" /><small>Security / Guard</small></div>
                 </div>
                 <div className="ep-print-footer">
-                  <span>SHIVOFFSET (I) PVT. LTD. • Haridwar</span>
+                  <span>SHIVOFFSET (I) PVT. LTD. • {locCity}</span>
                   <span>shivoffset.com</span>
                 </div>
               </div>
